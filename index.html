@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="PidgeonWorld is a classroom-friendly Phaser mini-game for practicing number sense."
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>PidgeonWorld</title>
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero-copy">
+        <div>
+          <p class="eyebrow">Phaser classroom demo</p>
+          <h1>PidgeonWorld</h1>
+          <p>
+            Guide Pixel the pigeon through a floating garden, collect the seeds that match
+            the current lesson target, and dodge swooping hawks. The HUD keeps your
+            learners informed about goals, streaks, and math tips.
+          </p>
+        </div>
+        <ul class="controls">
+          <li><span>Arrow Keys</span> Move Pixel</li>
+          <li><span>Space</span> Dash burst</li>
+          <li><span>M</span> Toggle music cues</li>
+        </ul>
+      </header>
+
+      <section class="game-panel" aria-label="Interactive lesson area">
+        <div id="game-container" class="game-root" role="application"></div>
+        <aside class="tips">
+          <h2>Quick tips</h2>
+          <ol>
+            <li>Collect only the highlighted numbers.</li>
+            <li>Build streaks to earn bonus points.</li>
+            <li>Use dashes to escape hawks.</li>
+          </ol>
+        </aside>
+      </section>
+
+      <footer>
+        <p>
+          Every round loops through differentiated lesson cards so you can scale difficulty
+          up or down in seconds.
+        </p>
+      </footer>
+    </main>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
