@@ -277,61 +277,83 @@ h1 span {
   line-height: 1.7;
   color: #a0afb5;
 }
-.route {
-  margin: 24px 0 12px;
+.world-map {
+  margin: 22px 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
-.route-stop {
+.world-heading {
   display: flex;
   align-items: center;
-  gap: 13px;
-  padding: 11px 0;
-  width: 100%;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  color: inherit;
-}
-.route-stop:hover {
-  transform: translateX(4px);
-}
-.route-stop.done strong::after {
-  content: '  ✓';
-  color: #b1ed8d;
-}
-.boss-stop {
-  border-top: 1px solid #ffffff15;
-  margin-top: 5px;
-}
-.route-stop > span {
-  font: 12px monospace;
-  color: #708189;
-  border: 1px solid #34434c;
-  width: 29px;
-  height: 29px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-}
-.route-stop strong {
+  gap: 10px;
   font:
     500 13px 'Space Grotesk',
     sans-serif;
   color: #8fa2ab;
+  margin: 0;
 }
-.route-stop small {
-  display: block;
-  font: 8px monospace;
-  color: #7e919c;
-  margin-top: 5px;
-  letter-spacing: 0.5px;
+.world-heading span {
+  font: 10px monospace;
+  color: #708189;
+  border: 1px solid #34434c;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
-.route-stop.active > span {
+.level-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.level-pip {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid #34434c;
+  background: transparent;
+  color: #8fa2ab;
+  font: 12px monospace;
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+.level-pip:hover:not(:disabled) {
+  border-color: #b1ed8d;
+  color: #b1ed8d;
+}
+.level-pip.active {
   color: #b1ed8d;
   border-color: #b1ed8d;
+  background: #b1ed8d1a;
 }
-.route-stop.active strong,
-.route-stop.active small {
-  color: #b1ed8d;
+.level-pip.done::after {
+  content: '✓';
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #b1ed8d;
+  color: #18281c;
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  font-size: 9px;
+  display: grid;
+  place-items: center;
+}
+.level-pip.locked {
+  opacity: 0.45;
+  cursor: default;
+}
+.level-pip.boss {
+  border-color: #ff8e79;
+  color: #ff8e79;
+}
+.level-pip.boss.active {
+  background: #ff8e791a;
 }
 .prototype-note {
   border-top: 1px solid #ffffff15;

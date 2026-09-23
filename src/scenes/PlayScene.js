@@ -1,16 +1,9 @@
 import Phaser from 'phaser'
 
-import { DEFAULT_DEMO, LEVEL_BY_ID } from '../data/demoLevels.js'
-import {
-  AdventureState,
-  CHECKPOINTS,
-  readSave,
-  writeSave,
-} from '../state/AdventureState.js'
+import { DEFAULT_LEVEL, LEVEL_BY_ID, nextLevelId } from '../data/campaign.js'
+import { AdventureState, readSave, writeSave } from '../state/AdventureState.js'
 
 const FLOOR = 480
-const LEVEL_WIDTH = 2800
-const BOSS_WIDTH = 1900
 const labelStyle = {
   fontFamily: 'monospace',
   fontSize: '13px',
@@ -26,7 +19,7 @@ export default class PlayScene extends Phaser.Scene {
   }
 
   init(data = {}) {
-    this.requestedDemo = data.demo
+    this.requestedLevel = data.level
     this.restartRequested = data.restart === true
   }
 
@@ -38,12 +31,12 @@ export default class PlayScene extends Phaser.Scene {
     }
     const loaded = readSave(this.storage)
     this.state = new AdventureState(loaded.save)
-    this.state.selectDemo(
-      this.requestedDemo || this.state.selectedDemo || DEFAULT_DEMO,
+    this.state.selectLevel(
+      this.requestedLevel || this.state.currentLevel || DEFAULT_LEVEL,
       this.restartRequested
     )
-    this.level = LEVEL_BY_ID[this.state.selectedDemo]
-    this.width = this.level.boss ? BOSS_WIDTH : LEVEL_WIDTH
+    this.level = LEVEL_BY_ID[this.state.currentLevel]
+    this.width = this.level.width
     this.saveAvailable = loaded.available
     this.mode = 'menu'
     this.elapsed = 0
@@ -56,15 +49,17 @@ export default class PlayScene extends Phaser.Scene {
     this.message = this.level.message
     this.messageUntil = 0
     this.encounterTimers = []
-    this.bossHealth = this.level.boss ? 12 : 0
+    this.bossHealth = this.level.finalBoss ? this.level.bossMaxHealth : 0
     this.bossMaxHealth = this.bossHealth
     this.bossAttackReady = 0
+    this.lastOutcome = null
 
     this.physics.world.gravity.y = this.level.gravity
     this.physics.world.setBounds(0, -400, this.width, 1200)
     this.cameras.main.setBounds(0, 0, this.width, 540)
     this.drawBackground()
     this.platforms = this.physics.add.staticGroup()
+    this.legPlatforms = this.physics.add.group({ allowGravity: false, immovable: true })
     this.bridges = this.physics.add.group({ allowGravity: false, immovable: true })
     this.enemies = this.physics.add.group()
     this.hazards = this.physics.add.group({ allowGravity: false })
@@ -87,22 +82,22 @@ export default class PlayScene extends Phaser.Scene {
   drawBackground() {
     this.cameras.main.setBackgroundColor(this.level.sky)
     const far = this.add.graphics().setScrollFactor(0.08)
-    if (this.level.id === 'actually-earth') {
-      for (let i = 0; i < 8; i++) {
+    if (this.level.world === 'w5') {
+      for (let i = 0; i < Math.ceil(this.width / 240); i++) {
         far
           .fillStyle(0xffffff, 0.75)
           .fillEllipse(100 + i * 240, 90 + (i % 3) * 45, 110, 30)
       }
     } else {
-      for (let i = 0; i < 100; i++)
+      for (let i = 0; i < Math.ceil(this.width / 25); i++)
         far
           .fillStyle(i % 4 ? 0xffffff : this.level.accent, 0.65)
-          .fillRect((i * 137 + 19) % 1450, (i * 83 + 11) % 390, i % 5 ? 2 : 3, 2)
+          .fillRect((i * 137 + 19) % this.width, (i * 83 + 11) % 390, i % 5 ? 2 : 3, 2)
     }
     far.fillStyle(this.level.sun, 0.15).fillCircle(790, 130, 68)
     far.fillStyle(this.level.sun, 1).fillCircle(790, 130, 45)
     const hills = this.add.graphics().setScrollFactor(0.35)
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < Math.ceil(this.width / 170); i++) {
       hills
         .fillStyle(this.level.soil, 0.8)
         .fillRect(i * 170, 365 - (i % 3) * 25, 185, 180)
@@ -116,6 +111,7 @@ export default class PlayScene extends Phaser.Scene {
   }
 
   addGround(x, width, y = FLOOR, height = 100) {
+    if (width <= 0) return
     const ground = this.add.rectangle(x, y, width, height, this.level.soil).setOrigin(0)
     this.add.rectangle(x, y, width, 10, this.level.ground).setOrigin(0)
     this.physics.add.existing(ground, true)
@@ -129,96 +125,108 @@ export default class PlayScene extends Phaser.Scene {
     this.platforms.add(platform)
   }
 
+  addLegPlatform(x, y, width) {
+    const platform = this.add.rectangle(x, y, width, 22, this.level.ground)
+    platform.setStrokeStyle(4, 0xff8fae)
+    this.physics.add.existing(platform, false)
+    platform.body.setAllowGravity(false).setImmovable(true)
+    platform.setData({ homeX: x, homeY: y, triggered: false })
+    this.legPlatforms.add(platform)
+  }
+
   sign(x, y, text) {
     this.add.rectangle(x, y + 34, 5, 48, this.level.soil)
     this.add.text(x, y, text, labelStyle).setOrigin(0.5)
   }
 
   buildLevel() {
-    if (this.level.boss) {
-      this.buildBossArena()
-      return
-    }
     let cursor = 0
     for (const [start, end] of this.level.gaps) {
       this.addGround(cursor, start - cursor)
       cursor = end
     }
     this.addGround(cursor, this.width - cursor)
-    this.addPlatform(430, 385, 150)
-    this.addPlatform(620, 315, 120)
-    this.addPlatform(1320, 365, 150)
-    this.addPlatform(1470, 290, 110)
-    this.addPlatform(2170, 355, 170)
+    this.level.platforms.forEach((p) =>
+      p.legs ? this.addLegPlatform(p.x, p.y, p.width) : this.addPlatform(p.x, p.y, p.width)
+    )
     this.sign(190, 395, `${this.level.name.toUpperCase()}\n${this.level.short}`)
-    this.sign(1380, 410, this.trapSign())
-    this.sign(2380, 390, 'SPACESHIP THIS WAY\nProbably.')
+    this.sign(Math.round(this.level.platformWidth * 0.52), 410, this.level.signText)
+    if (!this.level.finalBoss)
+      this.sign(this.level.width - 420, 390, 'SPACESHIP THIS WAY\nProbably.')
 
-    this.checkpointFlags = CHECKPOINTS.slice(1).map((x, index) => {
+    this.checkpointFlags = this.level.checkpoints.slice(1).map((x, index) => {
       this.add.rectangle(x, FLOOR - 38, 4, 76, 0xe6f1e7)
       const flag = this.add.rectangle(x + 20, FLOOR - 65, 38, 22, this.level.accent)
       this.add.text(x - 9, FLOOR - 98, `CP ${index + 1}`, {
         ...labelStyle,
         fontSize: '11px',
       })
-      return { x, flag }
+      return { x, flag, index: index + 1 }
     })
     this.buildThemeTrap()
+    this.buildJoke()
     this.spawnRegularEnemies()
     if (this.level.giant) {
       this.giant = this.physics.add
-        .sprite(2240, FLOOR - 44, 'giant')
+        .sprite(this.level.giantX, FLOOR - 44, 'giant')
         .setTint(this.level.giantTint)
         .setImmovable(true)
       this.giant.body.setAllowGravity(false).setSize(115, 74).setOffset(5, 8)
-      this.add.text(2160, 330, 'GIGANTIC = ONE HIT', { ...labelStyle, color: '#ffb6bf' })
+      this.giant.homeX = this.level.giantX
+      this.add.text(this.level.giantX - 80, 330, 'GIGANTIC = ONE HIT', {
+        ...labelStyle,
+        color: '#ffb6bf',
+      })
     }
-    this.ship = this.add.image(this.width - 125, FLOOR - 38, 'ship').setScale(1.15)
-    this.add.text(this.width - 210, 350, 'DEMO EXIT\nBoard spaceship', labelStyle)
-  }
-
-  trapSign() {
-    return {
-      bridge: 'ABSOLUTELY SAFE BRIDGE',
-      icicles: 'ICICLE-FREE ZONE',
-      fire: 'LAVA: LOCALLY SOURCED',
-      swarm: 'PARASITE QUIET AREA',
-      earth: 'NORMAL EARTH LAWN',
-    }[this.level.trap]
+    if (this.level.finalBoss) this.buildBossArena()
+    else {
+      this.ship = this.add.image(this.width - 125, FLOOR - 38, 'ship').setScale(1.15)
+      this.add.text(this.width - 210, 350, 'LEVEL EXIT\nBoard spaceship', labelStyle)
+    }
   }
 
   buildThemeTrap() {
+    const gaps = this.level.gaps
+    const span = this.level.platformWidth - 960
     if (this.level.trap === 'bridge') {
-      for (let x = 760; x < 1050; x += 48) {
-        const bridge = this.bridges.create(x, FLOOR + 8, 'bridge')
-        bridge.homeX = x
-        bridge.homeY = FLOOR + 8
-      }
+      gaps.forEach(([start, end], i) => {
+        if (i % 2 !== 0) return
+        for (let x = start - 40; x < end + 40; x += 48) {
+          const bridge = this.bridges.create(x, FLOOR + 8, 'bridge')
+          bridge.homeX = x
+          bridge.homeY = FLOOR + 8
+        }
+      })
     }
     if (this.level.trap === 'icicles') {
-      for (const x of [700, 1320, 1480, 1700, 2300]) {
+      const count = Math.max(3, Math.round(span / 420))
+      for (let i = 0; i < count; i++) {
+        const x = 460 + Math.round(((i + 1) * span) / (count + 1))
         const ice = this.hazards.create(x, 85, 'icicle')
         ice.setData({ type: 'drop', startY: 85, triggerX: x - 170 })
       }
     }
     if (this.level.trap === 'fire') {
-      for (const [x, phase] of [
-        [820, 0],
-        [1680, 1.5],
-        [2320, 3],
-      ]) {
+      const count = Math.max(2, Math.round(span / 620))
+      for (let i = 0; i < count; i++) {
+        const x = 460 + Math.round(((i + 1) * span) / (count + 1))
         const fire = this.hazards.create(x, FLOOR - 16, 'fireball')
-        fire.setData({ type: 'fire', homeX: x, phase })
+        fire.setData({ type: 'fire', homeX: x, phase: i * 1.5 })
       }
     }
     if (this.level.trap === 'swarm') {
-      for (let i = 0; i < 11; i++) {
-        const bug = this.hazards.create(620 + i * 170, 230 + (i % 3) * 55, 'parasite')
+      const count = Math.max(6, Math.round(span / 170))
+      for (let i = 0; i < count; i++) {
+        const x = 460 + i * 170
+        if (x > this.level.platformWidth - 500) break
+        const bug = this.hazards.create(x, 230 + (i % 3) * 55, 'parasite')
         bug.setData({ type: 'swarm', homeX: bug.x, homeY: bug.y, phase: i * 0.7 })
       }
     }
-    if (this.level.trap === 'earth') {
-      for (const x of [700, 1420, 1680, 2320]) {
+    if (this.level.trap === 'earthBlock') {
+      const count = Math.max(2, Math.round(span / 520))
+      for (let i = 0; i < count; i++) {
+        const x = 460 + Math.round(((i + 1) * span) / (count + 1))
         const block = this.blocks.create(x, 150, 'block')
         block.setTint(0x9b7653)
         block.setData({ triggerX: x - 150, dropped: false })
@@ -226,14 +234,24 @@ export default class PlayScene extends Phaser.Scene {
     }
   }
 
+  buildJoke() {
+    const joke = this.level.joke
+    if (joke.type === 'runaway') {
+      this.crumb = this.physics.add.sprite(joke.x, FLOOR - 46, 'crumb')
+      this.crumb.body.setAllowGravity(false)
+      this.crumb.homeX = joke.x
+      this.crumb.fled = false
+    }
+    if (joke.type === 'fakeFlag') {
+      this.add.rectangle(joke.x, FLOOR - 24, 5, 48, this.level.soil)
+      this.fakeFlag = this.add.image(joke.x, FLOOR - 60, 'fake-flag')
+      this.physics.add.existing(this.fakeFlag, true)
+      this.fakeFlag.setData('triggered', false)
+    }
+  }
+
   spawnRegularEnemies() {
-    for (const [x, min, max] of [
-      [520, 350, 680],
-      [1250, 1170, 1450],
-      [2040, 1980, 2150],
-      [2470, 2410, 2580],
-    ]) {
-      if (this.level.gaps.some(([a, b]) => x > a && x < b)) continue
+    for (const { x, min, max } of this.level.enemies) {
       const enemy = this.enemies
         .create(x, FLOOR - 20, this.level.trap === 'swarm' ? 'parasite' : 'ninja')
         .setScale(this.level.trap === 'swarm' ? 1.5 : 1.6)
@@ -243,27 +261,29 @@ export default class PlayScene extends Phaser.Scene {
   }
 
   buildBossArena() {
-    this.addGround(0, this.width)
-    this.addPlatform(430, 360, 160)
-    this.addPlatform(720, 290, 130)
-    this.addPlatform(1040, 360, 160)
-    this.sign(220, 390, 'FINAL DEMO\nPRAWN SUIT DIPLOMACY')
-    this.sign(780, 420, '12 KANGAROO HITS\nNo sauce provided')
+    this.bossHomeX = this.level.bossX
+    this.addPlatform(this.level.platformWidth + 300, 360, 150)
+    this.addPlatform(this.level.platformWidth + 650, 300, 130)
+    this.addPlatform(this.level.platformWidth + 1000, 360, 150)
+    this.sign(
+      this.level.platformWidth + 120,
+      420,
+      `${this.level.bossMaxHealth} KANGAROO HITS\nNo sauce provided`
+    )
     this.boss = this.physics.add
-      .sprite(1450, FLOOR - 55, 'prawn-boss')
+      .sprite(this.bossHomeX, FLOOR - 55, 'prawn-boss')
       .setScale(1.55)
       .setImmovable(true)
     this.boss.body.setAllowGravity(false).setSize(125, 85).setOffset(8, 8)
-    this.add.text(1320, 285, 'THE JAPANESE EMPIRE\nIN A BIG PRAWN SUIT', {
+    this.add.text(this.bossHomeX - 130, 285, 'THE JAPANESE EMPIRE\nIN A BIG PRAWN SUIT', {
       ...labelStyle,
       color: '#ffb4a9',
     })
-    this.checkpointFlags = []
   }
 
   spawnPlayer() {
     this.player = this.physics.add
-      .sprite(this.level.boss ? 120 : this.state.checkpoint, FLOOR - 28, 'pigeon')
+      .sprite(this.state.checkpointX, FLOOR - 28, 'pigeon')
       .setScale(1.35)
       .setDepth(8)
     this.player.body.setSize(22, 26).setOffset(5, 5)
@@ -272,12 +292,19 @@ export default class PlayScene extends Phaser.Scene {
 
   registerPhysics() {
     this.physics.add.collider(this.player, this.platforms)
+    this.physics.add.collider(this.player, this.legPlatforms, (_player, plat) =>
+      this.spookPlatform(plat)
+    )
     this.physics.add.collider(this.player, this.bridges, (_player, bridge) =>
       this.collapseBridge(bridge)
     )
     this.physics.add.collider(this.enemies, this.platforms)
+    this.physics.add.collider(this.enemies, this.legPlatforms)
     this.physics.add.collider(this.blocks, this.platforms)
     this.physics.add.collider(this.shots, this.platforms, (shot) => {
+      if (shot.body.blocked.left || shot.body.blocked.right) shot.destroy()
+    })
+    this.physics.add.collider(this.shots, this.legPlatforms, (shot) => {
       if (shot.body.blocked.left || shot.body.blocked.right) shot.destroy()
     })
     this.physics.add.collider(this.shots, this.bridges)
@@ -285,7 +312,7 @@ export default class PlayScene extends Phaser.Scene {
       this.hitEnemy(enemy)
     )
     this.physics.add.overlap(this.player, this.hazards, () =>
-      this.hurt(false, this.hazardMessage())
+      this.hurt(false, this.level.hazardMessage)
     )
     this.physics.add.overlap(this.player, this.blocks, () =>
       this.hurt(false, 'The scenery has become interactive.')
@@ -308,6 +335,8 @@ export default class PlayScene extends Phaser.Scene {
       )
       this.physics.add.overlap(this.shots, this.boss, (shot) => this.hitBoss(shot))
     }
+    if (this.fakeFlag)
+      this.physics.add.overlap(this.player, this.fakeFlag, () => this.hitFakeFlag())
   }
 
   registerInput() {
@@ -361,12 +390,12 @@ export default class PlayScene extends Phaser.Scene {
   handleAction(action) {
     if (typeof action === 'object' && action.type === 'select') {
       this.persist()
-      this.scene.restart({ demo: action.id, restart: action.restart === true })
+      this.scene.restart({ level: action.id, restart: action.restart === true })
       return
     }
     if (action === 'start' || action === 'new') {
       if (action === 'new') {
-        this.state.selectDemo(this.level.id, true)
+        this.state.selectLevel(this.level.id, true)
         this.elapsed = 0
         this.persist()
       }
@@ -398,13 +427,7 @@ export default class PlayScene extends Phaser.Scene {
     this.shots.clear(true, true)
     this.bossShots.clear(true, true)
     this.player
-      .enableBody(
-        true,
-        this.level.boss ? 120 : this.state.checkpoint,
-        FLOOR - 30,
-        true,
-        true
-      )
+      .enableBody(true, this.state.checkpointX, FLOOR - 30, true, true)
       .setVelocity(0, 0)
       .setAngle(0)
     this.state.hearts = 10
@@ -416,6 +439,12 @@ export default class PlayScene extends Phaser.Scene {
       bridge.body.setAllowGravity(false)
       bridge.setVelocity(0).clearTint()
       bridge.triggered = false
+    })
+    this.legPlatforms.getChildren().forEach((plat) => {
+      plat.setPosition(plat.getData('homeX'), plat.getData('homeY'))
+      plat.body.reset(plat.getData('homeX'), plat.getData('homeY'))
+      plat.body.setAllowGravity(false).setImmovable(true)
+      plat.setData('triggered', false)
     })
     this.hazards.getChildren().forEach((hazard) => {
       if (hazard.getData('type') === 'drop') {
@@ -431,10 +460,15 @@ export default class PlayScene extends Phaser.Scene {
       block.setVelocity(0)
       block.setData('dropped', false)
     })
-    if (this.level.boss) {
+    if (this.crumb) {
+      this.crumb.body.reset(this.crumb.homeX, FLOOR - 46)
+      this.crumb.fled = false
+    }
+    if (this.fakeFlag) this.fakeFlag.setData('triggered', false)
+    if (this.boss) {
       this.bossHealth = this.bossMaxHealth
-      this.boss.setPosition(1450, FLOOR - 55).setAlpha(1)
-      this.boss.enableBody(true, 1450, FLOOR - 55, true, true)
+      this.boss.setPosition(this.bossHomeX, FLOOR - 55).setAlpha(1)
+      this.boss.enableBody(true, this.bossHomeX, FLOOR - 55, true, true)
     }
   }
 
@@ -546,8 +580,9 @@ export default class PlayScene extends Phaser.Scene {
     )
     this.updateEnemies()
     this.updateTraps(delta)
-    if (this.level.boss) this.updateBoss(delta)
-    else this.updateProgress(grounded)
+    this.updateJoke()
+    if (this.boss) this.updateBoss()
+    this.updateProgress(grounded)
     if (this.player.y > 610) {
       this.die(
         this.level.trap === 'fire'
@@ -609,7 +644,28 @@ export default class PlayScene extends Phaser.Scene {
     })
     if (this.giant) {
       this.giantPhase = (this.giantPhase || 0) + delta / 800
-      this.giant.body.reset(2240 + Math.sin(this.giantPhase) * 75, FLOOR - 44)
+      this.giant.body.reset(this.giant.homeX + Math.sin(this.giantPhase) * 75, FLOOR - 44)
+    }
+  }
+
+  updateJoke() {
+    if (this.crumb) {
+      const dx = this.crumb.x - this.player.x
+      const near = Math.abs(dx) < 240
+      if (near && !this.crumb.fled) {
+        this.crumb.fled = true
+        this.say('Nice try. It saw you coming.')
+      }
+      if (!near) this.crumb.fled = false
+      const target = Phaser.Math.Clamp(
+        near ? this.crumb.homeX + Math.sign(dx || 1) * 230 : this.crumb.homeX,
+        this.crumb.homeX - 230,
+        this.crumb.homeX + 230
+      )
+      this.crumb.body.reset(
+        Phaser.Math.Linear(this.crumb.x, target, 0.12),
+        FLOOR - 46
+      )
     }
   }
 
@@ -618,23 +674,24 @@ export default class PlayScene extends Phaser.Scene {
       if (
         Math.abs(this.player.x - checkpoint.x) < 36 &&
         grounded &&
-        this.state.activateCheckpoint(checkpoint.x)
+        this.state.activateCheckpoint(checkpoint.index)
       ) {
         this.persist()
         this.say('Checkpoint! Ten hearts refilled. Suspicion unchanged.')
       }
       checkpoint.flag.setFillStyle(
-        this.state.checkpoint >= checkpoint.x ? this.level.accent : 0x566475
+        this.state.checkpointX >= checkpoint.x ? this.level.accent : 0x566475
       )
     }
-    if (this.player.x > this.width - 210 && grounded) this.complete()
+    if (this.level.exitX && this.player.x > this.level.exitX - 20 && grounded)
+      this.complete()
   }
 
   updateBoss() {
     if (!this.boss?.active) return
     const t = this.time.now / 1000
     this.boss.body.reset(
-      1430 + Math.sin(t * 0.9) * 230,
+      this.bossHomeX + Math.sin(t * 0.9) * 230,
       FLOOR - 55 - Math.abs(Math.sin(t * 1.4)) * 55
     )
     if (this.time.now >= this.bossAttackReady) {
@@ -663,7 +720,7 @@ export default class PlayScene extends Phaser.Scene {
       .setBounce(0, 0.72)
       .setFlipX(this.facing < 0)
     shot.body.setSize(18, 23).setOffset(4, 3)
-    shot.expires = this.time.now + (this.level.boss ? 6000 : 3500)
+    shot.expires = this.time.now + (this.boss ? 6000 : 3500)
   }
 
   hitEnemy(enemy) {
@@ -680,6 +737,13 @@ export default class PlayScene extends Phaser.Scene {
           ? 'Parasite attempted a hostile subscription.'
           : 'Ninja says: personal space!'
       )
+  }
+
+  hitFakeFlag() {
+    if (this.fakeFlag.getData('triggered')) return
+    this.fakeFlag.setData('triggered', true)
+    this.pop(this.fakeFlag.x, this.fakeFlag.y - 20, 'FAKE FINISH!')
+    this.say('Nice knees. The real ship is further on.')
   }
 
   hitBoss(shot) {
@@ -700,6 +764,20 @@ export default class PlayScene extends Phaser.Scene {
     }
   }
 
+  spookPlatform(plat) {
+    if (plat.getData('triggered') || !this.player.body.touching.down) return
+    plat.setData('triggered', true)
+    this.say('The platform has grown legs and left.')
+    const dir = this.player.x < plat.x ? 1 : -1
+    this.encounterTimers.push(
+      this.time.delayedCall(500, () => {
+        if (!plat.active) return
+        plat.body.setVelocityX(dir * 230)
+      }),
+      this.time.delayedCall(1350, () => plat.active && plat.body.setVelocityX(0))
+    )
+  }
+
   collapseBridge(bridge) {
     if (bridge.triggered || !this.player.body.touching.down) return
     bridge.triggered = true
@@ -712,17 +790,6 @@ export default class PlayScene extends Phaser.Scene {
         bridge.setVelocityY(100)
         this.time.delayedCall(650, () => bridge.disableBody(true, true))
       })
-    )
-  }
-
-  hazardMessage() {
-    return (
-      {
-        icicles: 'Cold, sharp, and surprisingly punctual.',
-        fire: 'Literal fire monster. Metaphors unavailable.',
-        swarm: 'The swarm has voted to bite.',
-        earth: 'Earth remains deceptively Earth-like.',
-      }[this.level.trap] || 'A hazard happened.'
     )
   }
 
@@ -747,7 +814,12 @@ export default class PlayScene extends Phaser.Scene {
   }
 
   complete() {
-    this.state.completed = true
+    this.state.completeCurrent()
+    this.lastOutcome = this.level.finalBoss
+      ? 'campaign'
+      : this.level.isWorldFinale
+        ? 'world'
+        : 'level'
     this.persist()
     this.mode = 'complete'
     this.physics.pause()
@@ -777,21 +849,25 @@ export default class PlayScene extends Phaser.Scene {
   publish() {
     this.game.events.emit('ui:state', {
       mode: this.mode,
-      demo: this.level.id,
+      id: this.level.id,
       name: this.level.name,
       number: this.level.number,
+      worldName: this.level.worldName,
       intro: this.level.intro,
       hearts: this.state.hearts,
       flaps: this.state.flaps,
       deaths: this.state.deaths,
-      checkpoint: this.level.boss ? 0 : CHECKPOINTS.indexOf(this.state.checkpoint),
-      checkpointMax: this.level.boss ? 0 : 2,
+      checkpoint: this.state.checkpoint,
+      checkpointMax: 2,
       completed: this.state.completed,
-      completedDemos: this.state.completedDemos,
+      completedLevels: this.state.completedLevels,
+      unlockedLevels: this.state.unlockedLevels,
+      outcome: this.lastOutcome,
+      nextLevelId: nextLevelId(this.level.id),
       seconds: Math.floor(this.elapsed / 1000),
-      progress: this.level.boss
+      progress: this.level.finalBoss
         ? Math.round((1 - this.bossHealth / this.bossMaxHealth) * 100)
-        : Math.min(100, Math.round((this.player.x / (this.width - 200)) * 100)),
+        : Math.min(100, Math.round((this.player.x / (this.level.exitX || this.width)) * 100)),
       bossHealth: this.bossHealth,
       bossMaxHealth: this.bossMaxHealth,
       message: this.time.now < this.messageUntil ? this.message : this.level.message,

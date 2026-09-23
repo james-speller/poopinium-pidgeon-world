@@ -169,5 +169,11 @@ export function createSprites(scene) {
   gfx.clear().fillStyle(0xcad3d7).fillCircle(10, 10, 9)
   gfx.fillStyle(0xff6074).fillCircle(10, 10, 4)
   gfx.generateTexture('boss-shot', 20, 20)
+  gfx.clear().fillStyle(0xb77946).fillCircle(9, 9, 8)
+  gfx.fillStyle(0xffd477).fillCircle(6, 6, 3)
+  gfx.generateTexture('crumb', 18, 18)
+  gfx.clear().fillStyle(0xe35e65).fillRect(0, 0, 5, 48)
+  gfx.fillStyle(0xffd477).fillTriangle(5, 4, 5, 26, 38, 15)
+  gfx.generateTexture('fake-flag', 40, 48)
   gfx.destroy()
 }

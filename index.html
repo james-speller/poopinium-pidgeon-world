@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="A very silly pigeon platform adventure. First playable: Outer America."
+      content="A very silly pigeon platform adventure. Twenty levels across five planets, one big prawn suit."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>PidgeonWorld · Outer America</title>
@@ -18,7 +18,7 @@
             / SPACE NONSENSE</span
           ></a
         >
-        <span class="build-tag"><i></i> SIX-DEMO PLAYTEST · 0.3</span>
+        <span class="build-tag"><i></i> FULL CAMPAIGN · 20 LEVELS · 0.4</span>
       </header>
       <section class="intro">
         <div>
@@ -31,7 +31,7 @@
         </p>
       </section>
       <div class="play-layout">
-        <section class="game-card" aria-label="Outer America platform game">
+        <section class="game-card" aria-label="PidgeonWorld campaign game">
           <div class="game-toolbar">
             <span
               ><span class="live-dot"></span> <span id="world-name">OUTER AMERICA</span>
@@ -89,38 +89,10 @@
             Samurai. Ninjas. Exploding-pigeon experiments. A universe in need of one
             extremely normal bird.
           </p>
-          <div class="route" id="demo-selector" aria-label="Demo level selector">
-            <button class="route-stop active" data-demo="outer-america" type="button">
-              <span>01</span>
-              <div>
-                <strong>Outer America</strong><small>YOU ARE HERE · TEST LEVEL</small>
-              </div>
-            </button>
-            <button class="route-stop" data-demo="pe72b" type="button">
-              <span>02</span>
-              <div><strong>PE72B</strong><small>VERY COLD. VERY BAD.</small></div>
-            </button>
-            <button class="route-stop" data-demo="xpe72a" type="button">
-              <span>03</span>
-              <div><strong>XPE72A</strong><small>HOT. WITH MONSTERS.</small></div>
-            </button>
-            <button class="route-stop" data-demo="ep17a" type="button">
-              <span>04</span>
-              <div><strong>EP17A</strong><small>TOO MANY PARASITES.</small></div>
-            </button>
-            <button class="route-stop" data-demo="actually-earth" type="button">
-              <span>05</span>
-              <div>
-                <strong>Actually Earth</strong><small>BLUE SKY. SUSPICIOUS GRASS.</small>
-              </div>
-            </button>
-            <button class="route-stop boss-stop" data-demo="prawn-boss" type="button">
-              <span>B</span>
-              <div><strong>Big Prawn Suit</strong><small>FINAL BOSS DEMO</small></div>
-            </button>
-          </div>
+          <div class="world-map" id="demo-selector" aria-label="World and level selector"></div>
           <p class="prototype-note">
-            Choose any demo above. Completed demos get a tick and save in this browser.
+            Play levels in order. Finishing one unlocks the next; completed levels get a
+            tick and save in this browser.
           </p>
         </aside>
       </div>

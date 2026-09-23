@@ -1,27 +1,31 @@
-import { DEFAULT_DEMO, LEVEL_BY_ID } from '../data/demoLevels.js'
+import { DEFAULT_LEVEL, LEVEL_BY_ID, nextLevelId } from '../data/campaign.js'
 
-export const CHECKPOINTS = [120, 560, 1380]
-export const SAVE_KEY = 'pidgeonworld-adventure-v2'
+export const SAVE_KEY = 'pidgeonworld-campaign-v3'
 
 export function normalizeSave(value = {}) {
-  const selectedDemo = LEVEL_BY_ID[value.selectedDemo] ? value.selectedDemo : DEFAULT_DEMO
-  const checkpoints = {}
+  const currentLevel = LEVEL_BY_ID[value.currentLevel] ? value.currentLevel : DEFAULT_LEVEL
+  const completedLevels = Array.isArray(value.completedLevels)
+    ? [...new Set(value.completedLevels.filter((id) => LEVEL_BY_ID[id]))]
+    : []
+  const unlockedSource = Array.isArray(value.unlockedLevels) ? value.unlockedLevels : []
+  const unlockedLevels = [
+    ...new Set([DEFAULT_LEVEL, ...unlockedSource.filter((id) => LEVEL_BY_ID[id]), ...completedLevels]),
+  ]
+  const levelCheckpoints = {}
   for (const id of Object.keys(LEVEL_BY_ID)) {
-    checkpoints[id] = CHECKPOINTS.includes(value.checkpoints?.[id])
-      ? value.checkpoints[id]
-      : CHECKPOINTS[0]
+    const stored = value.levelCheckpoints?.[id]
+    levelCheckpoints[id] = Number.isInteger(stored) && stored >= 0 && stored <= 2 ? stored : 0
   }
   return {
-    version: 2,
-    selectedDemo,
-    checkpoints,
+    version: 3,
+    currentLevel,
+    unlockedLevels,
+    completedLevels,
+    levelCheckpoints,
     deaths:
       Number.isInteger(value.deaths) && value.deaths >= 0
         ? Math.min(value.deaths, 999999)
         : 0,
-    completedDemos: Array.isArray(value.completedDemos)
-      ? [...new Set(value.completedDemos.filter((id) => LEVEL_BY_ID[id]))]
-      : [],
   }
 }
 
@@ -30,7 +34,7 @@ export function readSave(storage) {
     const raw = storage.getItem(SAVE_KEY)
     if (!raw) return { save: normalizeSave(), available: true, exists: false }
     const value = JSON.parse(raw)
-    if (value?.version !== 2)
+    if (value?.version !== 3)
       return { save: normalizeSave(), available: true, exists: false }
     return { save: normalizeSave(value), available: true, exists: true }
   } catch {
@@ -53,27 +57,34 @@ export class AdventureState {
     this.hearts = 10
     this.flaps = 2
   }
+  get level() {
+    return LEVEL_BY_ID[this.currentLevel]
+  }
   get checkpoint() {
-    return this.checkpoints[this.selectedDemo]
+    return this.levelCheckpoints[this.currentLevel]
   }
   set checkpoint(value) {
-    this.checkpoints[this.selectedDemo] = value
+    this.levelCheckpoints[this.currentLevel] = value
+  }
+  get checkpointX() {
+    return this.level.checkpoints[this.checkpoint]
   }
   get completed() {
-    return this.completedDemos.includes(this.selectedDemo)
+    return this.completedLevels.includes(this.currentLevel)
   }
-  set completed(value) {
-    if (value && !this.completed) this.completedDemos.push(this.selectedDemo)
-    if (!value)
-      this.completedDemos = this.completedDemos.filter((id) => id !== this.selectedDemo)
+  get unlocked() {
+    return this.unlockedLevels.includes(this.currentLevel)
   }
-  selectDemo(id, restart = false) {
-    if (!LEVEL_BY_ID[id]) return false
-    this.selectedDemo = id
-    if (restart) {
-      this.checkpoint = CHECKPOINTS[0]
-      this.completed = false
-    }
+  isLevelUnlocked(id) {
+    return this.unlockedLevels.includes(id)
+  }
+  isLevelCompleted(id) {
+    return this.completedLevels.includes(id)
+  }
+  selectLevel(id, restart = false) {
+    if (!LEVEL_BY_ID[id] || !this.isLevelUnlocked(id)) return false
+    this.currentLevel = id
+    if (restart) this.checkpoint = 0
     this.hearts = 10
     this.flaps = 2
     return true
@@ -90,9 +101,10 @@ export class AdventureState {
     this.hearts = gigantic ? 0 : Math.max(0, this.hearts - 1)
     return this.hearts === 0
   }
-  activateCheckpoint(x) {
-    if (!CHECKPOINTS.includes(x) || x <= this.checkpoint) return false
-    this.checkpoint = x
+  activateCheckpoint(index) {
+    if (!Number.isInteger(index) || index < 1 || index > 2 || index <= this.checkpoint)
+      return false
+    this.checkpoint = index
     this.hearts = 10
     return true
   }
@@ -100,6 +112,12 @@ export class AdventureState {
     this.deaths += 1
     this.hearts = 10
     this.flaps = 2
+  }
+  completeCurrent() {
+    const id = this.currentLevel
+    if (!this.completedLevels.includes(id)) this.completedLevels.push(id)
+    const next = nextLevelId(id)
+    if (next && !this.unlockedLevels.includes(next)) this.unlockedLevels.push(next)
   }
   snapshot() {
     return normalizeSave(this)
