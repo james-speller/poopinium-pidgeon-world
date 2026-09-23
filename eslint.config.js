@@ -3,19 +3,20 @@ import pluginImport from 'eslint-plugin-import'
 import globals from 'globals'
 
 export default [
+  { ignores: ['dist/**'] },
   js.configs.recommended,
   {
     files: ['**/*.{js,mjs,cjs}'],
-    ignores: ['dist/**'],
     languageOptions: {
       sourceType: 'module',
       ecmaVersion: 'latest',
       globals: {
-        ...globals.browser
-      }
+        ...globals.browser,
+        ...globals.node,
+      },
     },
     plugins: {
-      import: pluginImport
+      import: pluginImport,
     },
     rules: {
       'no-console': ['warn', { allow: ['warn', 'error'] }],
@@ -23,10 +24,10 @@ export default [
         'warn',
         {
           alphabetize: { order: 'asc', caseInsensitive: true },
-          'newlines-between': 'always'
-        }
+          'newlines-between': 'always',
+        },
       ],
-      'import/no-unresolved': 'off'
-    }
-  }
+      'import/no-unresolved': 'off',
+    },
+  },
 ]

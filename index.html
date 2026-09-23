@@ -5,50 +5,179 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="PidgeonWorld is a classroom-friendly Phaser mini-game for practicing number sense."
+      content="A very silly pigeon platform adventure. First playable: Outer America."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>PidgeonWorld</title>
+    <title>PidgeonWorld · Outer America</title>
   </head>
   <body>
     <main class="layout">
-      <header class="hero-copy">
+      <header class="masthead">
+        <a class="brand" href="./"
+          ><span class="brand-icon">P.</span> PIDGEONWORLD<span class="edition">
+            / SPACE NONSENSE</span
+          ></a
+        >
+        <span class="build-tag"><i></i> SIX-DEMO PLAYTEST · 0.3</span>
+      </header>
+      <section class="intro">
         <div>
-          <p class="eyebrow">Phaser classroom demo</p>
-          <h1>PidgeonWorld</h1>
+          <p class="eyebrow">ONE PIGEON. FIVE PLANETS. TERRIBLE ODDS.</p>
+          <h1>Made In Australia.<br /><span>Lost in absolutely everything.</span></h1>
+        </div>
+        <p class="intro-copy">
+          Your mate is missing. The Empire is suspicious.<br />And the bridge definitely
+          passed its inspection.
+        </p>
+      </section>
+      <div class="play-layout">
+        <section class="game-card" aria-label="Outer America platform game">
+          <div class="game-toolbar">
+            <span
+              ><span class="live-dot"></span> <span id="world-name">OUTER AMERICA</span>
+              <b id="world-number">1—1</b></span
+            ><button id="pause-button" type="button">Pause <kbd>Esc</kbd></button>
+          </div>
+          <div
+            class="game-root"
+            id="game-container"
+            tabindex="0"
+            aria-label="Game canvas. Move with arrows, Space to jump or flap, X to shoot, Down to slam."
+          >
+            <div class="game-overlay" id="game-overlay">
+              <div class="overlay-content">
+                <p class="eyebrow" id="overlay-eyebrow">FLIGHT MANIFEST / 001</p>
+                <h2 id="overlay-title">
+                  A very ordinary pigeon.<br />A very stupid adventure.
+                </h2>
+                <p id="overlay-copy">
+                  Rescue Another Australian Pigeon from the space Japanese Empire. First,
+                  survive Outer America and reach your spaceship.
+                </p>
+                <div class="overlay-actions">
+                  <button class="primary" id="play-button" type="button">
+                    Start the adventure →</button
+                  ><button class="secondary" id="restart-button" type="button" hidden>
+                    Start over
+                  </button>
+                </div>
+                <p class="overlay-note" id="overlay-note">
+                  One player · Take turns · No easy mode
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="status-bar">
+            <span id="health" aria-label="Health">♥ ♥ ♥ ♥ ♥ ♥ ♥ ♥ ♥ ♥</span
+            ><span id="flaps">FLAPS 2/2</span><span id="deaths">RETRIES 0</span
+            ><span id="checkpoint">CP 0/2</span>
+          </div>
+          <div class="transmission">
+            <span>MISSION CONTROL</span>
+            <p id="message" role="status">
+              Find the spaceship. Trust absolutely nothing.
+            </p>
+          </div>
+          <div class="progress-track" aria-hidden="true">
+            <div id="progress-fill"></div>
+          </div>
+        </section>
+        <aside class="mission-panel">
+          <p class="eyebrow">YOUR MISSION</p>
+          <h2>Bring your<br />mate home.</h2>
           <p>
-            Guide Pixel the pigeon through a floating garden, collect the seeds that match
-            the current lesson target, and dodge swooping hawks. The HUD keeps your
-            learners informed about goals, streaks, and math tips.
+            Samurai. Ninjas. Exploding-pigeon experiments. A universe in need of one
+            extremely normal bird.
+          </p>
+          <div class="route" id="demo-selector" aria-label="Demo level selector">
+            <button class="route-stop active" data-demo="outer-america" type="button">
+              <span>01</span>
+              <div>
+                <strong>Outer America</strong><small>YOU ARE HERE · TEST LEVEL</small>
+              </div>
+            </button>
+            <button class="route-stop" data-demo="pe72b" type="button">
+              <span>02</span>
+              <div><strong>PE72B</strong><small>VERY COLD. VERY BAD.</small></div>
+            </button>
+            <button class="route-stop" data-demo="xpe72a" type="button">
+              <span>03</span>
+              <div><strong>XPE72A</strong><small>HOT. WITH MONSTERS.</small></div>
+            </button>
+            <button class="route-stop" data-demo="ep17a" type="button">
+              <span>04</span>
+              <div><strong>EP17A</strong><small>TOO MANY PARASITES.</small></div>
+            </button>
+            <button class="route-stop" data-demo="actually-earth" type="button">
+              <span>05</span>
+              <div>
+                <strong>Actually Earth</strong><small>BLUE SKY. SUSPICIOUS GRASS.</small>
+              </div>
+            </button>
+            <button class="route-stop boss-stop" data-demo="prawn-boss" type="button">
+              <span>B</span>
+              <div><strong>Big Prawn Suit</strong><small>FINAL BOSS DEMO</small></div>
+            </button>
+          </div>
+          <p class="prototype-note">
+            Choose any demo above. Completed demos get a tick and save in this browser.
+          </p>
+        </aside>
+      </div>
+      <section class="controls-panel" aria-label="Controls">
+        <div>
+          <span class="control-label">MOVE</span>
+          <p><kbd>←</kbd> <kbd>→</kbd> / A D<small>Stick / D-pad</small></p>
+        </div>
+        <div>
+          <span class="control-label">JUMP + 2 FLAPS</span>
+          <p><kbd>Space</kbd><small>A / Cross</small></p>
+        </div>
+        <div>
+          <span class="control-label">FIRE KANGAROOS</span>
+          <p><kbd>X</kbd> hold<small>X / Square</small></p>
+        </div>
+        <div>
+          <span class="control-label">DOWNWARD SLAM</span>
+          <p><kbd>↓</kbd> / S<small>B / Circle</small></p>
+        </div>
+        <div>
+          <span class="control-label">TRY AGAIN</span>
+          <p><kbd>R</kbd><small>Start, then B / Circle</small></p>
+        </div>
+      </section>
+      <div class="save-line">
+        <span id="save-status">Progress saves in this browser at checkpoints.</span
+        ><span id="controller-status">Controller: press a button to connect</span>
+      </div>
+      <section class="feedback-card">
+        <div>
+          <p class="eyebrow">CO-DESIGNER'S LOG</p>
+          <h2>What should we make sillier?</h2>
+          <p>
+            Which world theme worked best? Which trap felt unfair?<br />How did the prawn
+            boss and kangaroos feel?
           </p>
         </div>
-        <ul class="controls">
-          <li><span>Arrow Keys</span> Move Pixel</li>
-          <li><span>Space</span> Dash burst</li>
-          <li><span>M</span> Toggle music cues</li>
-        </ul>
-      </header>
-
-      <section class="game-panel" aria-label="Interactive lesson area">
-        <div id="game-container" class="game-root" role="application"></div>
-        <aside class="tips">
-          <h2>Quick tips</h2>
-          <ol>
-            <li>Collect only the highlighted numbers.</li>
-            <li>Build streaks to earn bonus points.</li>
-            <li>Use dashes to escape hawks.</li>
-          </ol>
-        </aside>
+        <div class="feedback-form">
+          <label for="feedback">Your playtest notes</label
+          ><textarea
+            id="feedback"
+            rows="3"
+            placeholder="The bridge got me. I want more kangaroos..."
+          ></textarea>
+          <div>
+            <button id="copy-feedback" class="secondary" type="button">
+              Copy feedback</button
+            ><span id="feedback-status">Notes stay in this browser.</span>
+          </div>
+        </div>
       </section>
-
       <footer>
-        <p>
-          Every round loops through differentiated lesson cards so you can scale difficulty
-          up or down in seconds.
-        </p>
+        <span>PIDGEONWORLD / FAMILY PLAYTEST</span
+        ><span>10 hearts. Unlimited retries. Questionable infrastructure.</span>
       </footer>
     </main>
-
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
