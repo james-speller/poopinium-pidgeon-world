@@ -53,6 +53,15 @@ export default class PlayScene extends Phaser.Scene {
     this.bossMaxHealth = this.bossHealth
     this.bossAttackReady = 0
     this.lastOutcome = null
+    // These are only (re)assigned by buildLevel() when the current level calls for
+    // them. Phaser reuses this same scene instance across scene.restart(), so without
+    // clearing them here a level that skips one (e.g. no crumb this time) would keep a
+    // stale reference to a destroyed sprite from a previous level and crash on use.
+    this.giant = null
+    this.ship = null
+    this.crumb = null
+    this.fakeFlag = null
+    this.boss = null
 
     this.physics.world.gravity.y = this.level.gravity
     this.physics.world.setBounds(0, -400, this.width, 1200)
