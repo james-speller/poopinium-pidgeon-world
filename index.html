@@ -36,7 +36,10 @@
             <span
               ><span class="live-dot"></span> <span id="world-name">OUTER AMERICA</span>
               <b id="world-number">1—1</b></span
-            ><button id="pause-button" type="button">Pause <kbd>Esc</kbd></button>
+            ><span class="toolbar-buttons"
+              ><button id="editor-open" type="button">✎ Level editor</button
+              ><button id="pause-button" type="button">Pause <kbd>Esc</kbd></button></span
+            >
           </div>
           <div
             class="game-root"
@@ -59,6 +62,12 @@
                     Start the adventure →</button
                   ><button class="secondary" id="restart-button" type="button" hidden>
                     Start over
+                  </button>
+                  <button class="secondary" id="editor-button" type="button" hidden>
+                    ✎ Back to editor
+                  </button>
+                  <button class="secondary" id="campaign-button" type="button" hidden>
+                    Back to campaign
                   </button>
                 </div>
                 <p class="overlay-note" id="overlay-note">
@@ -148,6 +157,7 @@
         ><span>10 hearts. Unlimited retries. Questionable infrastructure.</span>
       </footer>
     </main>
+    <div id="editor-root" hidden></div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

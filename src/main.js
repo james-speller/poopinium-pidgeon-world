@@ -1,5 +1,6 @@
 import './style.css'
 import { LEVEL_BY_ID, WORLD_LIST } from './data/campaign.js'
+import { Editor } from './editor/Editor.js'
 import { createGame } from './game/createGame.js'
 
 // Set before the game boots so Phaser sizes its canvas to the touch layout.
@@ -148,6 +149,8 @@ game.events.on('ui:state', (state) => {
     renderWorldMap(state)
   }
   overlay.hidden = state.mode === 'playing'
+  get('editor-button').hidden = !state.custom
+  get('campaign-button').hidden = !state.custom
   const nextKey = `${state.mode}-${state.id}-${state.completed}-${state.completedLevels.length}`
   if (nextKey === overlayKey) return
   overlayKey = nextKey
@@ -170,7 +173,14 @@ game.events.on('ui:state', (state) => {
         state.outcome === 'campaign' ? 'RESCUE COMPLETE' : 'SURVIVED'
       }`
     )
-    if (state.outcome === 'campaign') {
+    if (state.outcome === 'custom') {
+      setText('overlay-title', 'You beat your own level!')
+      setText(
+        'overlay-copy',
+        `Cleared in ${Math.floor(state.seconds / 60)}m ${state.seconds % 60}s. Play it again, or go back to the editor to make it even trickier.`
+      )
+      play.textContent = 'Play again →'
+    } else if (state.outcome === 'campaign') {
       setText('overlay-title', 'Another Australian Pigeon is free.')
       setText(
         'overlay-copy',
@@ -197,20 +207,60 @@ game.events.on('ui:state', (state) => {
       play.textContent = next ? `Continue to ${next.name} →` : 'Replay this level →'
     }
     restart.textContent = 'Replay this level'
-    restart.hidden = false
+    restart.hidden = state.custom
     setText(
       'overlay-note',
-      `${state.completedLevels.length}/20 levels completed · Progress saved`
+      state.custom
+        ? 'Made in the level editor · Your campaign progress is untouched'
+        : `${state.completedLevels.length}/20 levels completed · Progress saved`
     )
   } else {
-    setText('overlay-eyebrow', `${state.worldName.toUpperCase()} / LEVEL ${state.number}`)
+    setText(
+      'overlay-eyebrow',
+      state.custom
+        ? 'MY LEVEL'
+        : `${state.worldName.toUpperCase()} / LEVEL ${state.number}`
+    )
     setText('overlay-title', state.name)
     setText('overlay-copy', state.intro)
     play.textContent = state.checkpoint > 0 ? 'Continue level →' : 'Launch level →'
     restart.textContent = 'Start level over'
     restart.hidden = state.checkpoint === 0
-    setText('overlay-note', 'Choose any unlocked level on the right · One player · No easy mode')
+    setText(
+      'overlay-note',
+      state.custom
+        ? 'Made in the level editor · Your campaign progress is untouched'
+        : 'Choose any unlocked level on the right · One player · No easy mode'
+    )
   }
+})
+
+const editor = new Editor({
+  root: get('editor-root'),
+  game,
+  storage: (() => {
+    try {
+      return window.localStorage
+    } catch {
+      return null
+    }
+  })(),
+  onPlay: (level) => {
+    editor.close()
+    action({ type: 'custom', level })
+    focusGame()
+  },
+})
+get('editor-open').addEventListener('click', () => {
+  action('pause')
+  editor.openHub()
+})
+get('editor-button').addEventListener('click', () => {
+  if (latestState?.custom) editor.openForRuntimeId(latestState.id)
+  else editor.openHub()
+})
+get('campaign-button').addEventListener('click', () => {
+  if (latestState?.campaignLevel) select(latestState.campaignLevel)
 })
 
 if (import.meta.hot) import.meta.hot.dispose(dispose)

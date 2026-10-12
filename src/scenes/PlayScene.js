@@ -21,6 +21,7 @@ export default class PlayScene extends Phaser.Scene {
   init(data = {}) {
     this.requestedLevel = data.level
     this.restartRequested = data.restart === true
+    this.customLevel = data.custom || null
   }
 
   create() {
@@ -31,11 +32,15 @@ export default class PlayScene extends Phaser.Scene {
     }
     const loaded = readSave(this.storage)
     this.state = new AdventureState(loaded.save)
-    this.state.selectLevel(
-      this.requestedLevel || this.state.currentLevel || DEFAULT_LEVEL,
-      this.restartRequested
-    )
-    this.level = LEVEL_BY_ID[this.state.currentLevel]
+    if (this.customLevel) {
+      this.state.customLevel = this.customLevel
+      this.state.deaths = 0
+    } else
+      this.state.selectLevel(
+        this.requestedLevel || this.state.currentLevel || DEFAULT_LEVEL,
+        this.restartRequested
+      )
+    this.level = this.state.level
     this.width = this.level.width
     this.saveAvailable = loaded.available
     this.mode = 'menu'
@@ -159,8 +164,9 @@ export default class PlayScene extends Phaser.Scene {
       p.legs ? this.addLegPlatform(p.x, p.y, p.width) : this.addPlatform(p.x, p.y, p.width)
     )
     this.sign(190, 395, `${this.level.name.toUpperCase()}\n${this.level.short}`)
-    this.sign(Math.round(this.level.platformWidth * 0.52), 410, this.level.signText)
-    if (!this.level.finalBoss)
+    if (this.level.signText)
+      this.sign(Math.round(this.level.platformWidth * 0.52), 410, this.level.signText)
+    if (!this.level.finalBoss && !this.level.custom)
       this.sign(this.level.width - 420, 390, 'SPACESHIP THIS WAY\nProbably.')
 
     this.checkpointFlags = this.level.checkpoints.slice(1).map((x, index) => {
@@ -189,12 +195,44 @@ export default class PlayScene extends Phaser.Scene {
     }
     if (this.level.finalBoss) this.buildBossArena()
     else {
-      this.ship = this.add.image(this.width - 125, FLOOR - 38, 'ship').setScale(1.15)
-      this.add.text(this.width - 210, 350, 'LEVEL EXIT\nBoard spaceship', labelStyle)
+      const shipX = this.level.shipX ?? this.width - 125
+      this.ship = this.add.image(shipX, FLOOR - 38, 'ship').setScale(1.15)
+      this.add.text(shipX - 85, 350, 'LEVEL EXIT\nBoard spaceship', labelStyle)
+    }
+  }
+
+  buildCustomObjects() {
+    for (const x of this.level.bridges) {
+      const bridge = this.bridges.create(x, FLOOR + 8, 'bridge')
+      bridge.homeX = x
+      bridge.homeY = FLOOR + 8
+    }
+    for (const { type, x, y } of this.level.hazardList) {
+      if (type === 'icicle') {
+        const ice = this.hazards.create(x, 85, 'icicle')
+        ice.setData({ type: 'drop', startY: 85, triggerX: x - 170 })
+      }
+      if (type === 'fire') {
+        const fire = this.hazards.create(x, FLOOR - 16, 'fireball')
+        fire.setData({ type: 'fire', homeX: x, phase: (x / 40) % 6 })
+      }
+      if (type === 'parasite') {
+        const bug = this.hazards.create(x, y, 'parasite')
+        bug.setData({ type: 'swarm', homeX: x, homeY: y, phase: (x / 40) % 6 })
+      }
+      if (type === 'block') {
+        const block = this.blocks.create(x, 150, 'block')
+        block.setTint(0x9b7653)
+        block.setData({ triggerX: x - 150, dropped: false })
+      }
     }
   }
 
   buildThemeTrap() {
+    if (this.level.custom) {
+      this.buildCustomObjects()
+      return
+    }
     const gaps = this.level.gaps
     const span = this.level.platformWidth - 960
     if (this.level.trap === 'bridge') {
@@ -244,18 +282,19 @@ export default class PlayScene extends Phaser.Scene {
   }
 
   buildJoke() {
-    const joke = this.level.joke
-    if (joke.type === 'runaway') {
-      this.crumb = this.physics.add.sprite(joke.x, FLOOR - 46, 'crumb')
-      this.crumb.body.setAllowGravity(false)
-      this.crumb.homeX = joke.x
-      this.crumb.fled = false
-    }
-    if (joke.type === 'fakeFlag') {
-      this.add.rectangle(joke.x, FLOOR - 24, 5, 48, this.level.soil)
-      this.fakeFlag = this.add.image(joke.x, FLOOR - 60, 'fake-flag')
-      this.physics.add.existing(this.fakeFlag, true)
-      this.fakeFlag.setData('triggered', false)
+    for (const joke of [this.level.joke, ...(this.level.extraJokes || [])]) {
+      if (joke.type === 'runaway') {
+        this.crumb = this.physics.add.sprite(joke.x, FLOOR - 46, 'crumb')
+        this.crumb.body.setAllowGravity(false)
+        this.crumb.homeX = joke.x
+        this.crumb.fled = false
+      }
+      if (joke.type === 'fakeFlag') {
+        this.add.rectangle(joke.x, FLOOR - 24, 5, 48, this.level.soil)
+        this.fakeFlag = this.add.image(joke.x, FLOOR - 60, 'fake-flag')
+        this.physics.add.existing(this.fakeFlag, true)
+        this.fakeFlag.setData('triggered', false)
+      }
     }
   }
 
@@ -361,6 +400,7 @@ export default class PlayScene extends Phaser.Scene {
         Escape: 'ESC',
       })[event.key] || event.key.toUpperCase()
     this.onKeyDown = (event) => {
+      if (document.body.classList.contains('editor-open')) return
       if (event.target?.matches('textarea,input,button')) return
       const name = keyName(event)
       if (
@@ -412,9 +452,14 @@ export default class PlayScene extends Phaser.Scene {
       this.scene.restart({ level: action.id, restart: action.restart === true })
       return
     }
+    if (typeof action === 'object' && action.type === 'custom') {
+      this.scene.restart({ custom: action.level })
+      return
+    }
     if (action === 'start' || action === 'new') {
       if (action === 'new') {
-        this.state.selectLevel(this.level.id, true)
+        if (this.customLevel) this.state.checkpoint = 0
+        else this.state.selectLevel(this.level.id, true)
         this.elapsed = 0
         this.persist()
       }
@@ -834,17 +879,20 @@ export default class PlayScene extends Phaser.Scene {
 
   complete() {
     this.state.completeCurrent()
-    this.lastOutcome = this.level.finalBoss
-      ? 'campaign'
-      : this.level.isWorldFinale
-        ? 'world'
-        : 'level'
+    this.lastOutcome = this.customLevel
+      ? 'custom'
+      : this.level.finalBoss
+        ? 'campaign'
+        : this.level.isWorldFinale
+          ? 'world'
+          : 'level'
     this.persist()
     this.mode = 'complete'
     this.physics.pause()
     this.publish()
   }
   persist() {
+    if (this.customLevel) return
     this.saveAvailable = writeSave(this.storage, this.state.snapshot())
   }
   say(message) {
@@ -882,6 +930,8 @@ export default class PlayScene extends Phaser.Scene {
       completedLevels: this.state.completedLevels,
       unlockedLevels: this.state.unlockedLevels,
       outcome: this.lastOutcome,
+      custom: !!this.customLevel,
+      campaignLevel: this.state.currentLevel,
       nextLevelId: nextLevelId(this.level.id),
       seconds: Math.floor(this.elapsed / 1000),
       progress: this.level.finalBoss

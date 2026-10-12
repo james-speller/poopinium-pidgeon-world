@@ -57,19 +57,22 @@ export class AdventureState {
     this.hearts = 10
     this.flaps = 2
   }
+  // A custom (level-editor) level can be attached as customLevel. It is played on
+  // top of the saved campaign but never written to it.
   get level() {
-    return LEVEL_BY_ID[this.currentLevel]
+    return this.customLevel || LEVEL_BY_ID[this.currentLevel]
   }
   get checkpoint() {
-    return this.levelCheckpoints[this.currentLevel]
+    return this.levelCheckpoints[this.customLevel ? 'custom' : this.currentLevel] || 0
   }
   set checkpoint(value) {
-    this.levelCheckpoints[this.currentLevel] = value
+    this.levelCheckpoints[this.customLevel ? 'custom' : this.currentLevel] = value
   }
   get checkpointX() {
     return this.level.checkpoints[this.checkpoint]
   }
   get completed() {
+    if (this.customLevel) return this.customDone === true
     return this.completedLevels.includes(this.currentLevel)
   }
   get unlocked() {
@@ -114,6 +117,10 @@ export class AdventureState {
     this.flaps = 2
   }
   completeCurrent() {
+    if (this.customLevel) {
+      this.customDone = true
+      return
+    }
     const id = this.currentLevel
     if (!this.completedLevels.includes(id)) this.completedLevels.push(id)
     const next = nextLevelId(id)

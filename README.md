@@ -23,6 +23,17 @@ The mission panel beside the game shows a world map: five worlds of four level p
 
 Every level also carries one of four rotating troll jokes: a misleading sign, a runaway collectible that can never be caught, a platform that sprouts legs and relocates, or a fake finish flag. Each level saves its own checkpoint; completing a level saves campaign progress and unlocks the next.
 
+## Level editor
+
+Press **✎ Level editor** above the game to open **My levels**. Tap **+ New level** and build with the tool palette along the bottom (tap or click the level to place things):
+
+- **Ground:** Pit (drag to dig several), Bridge (wobbly planks over a pit), Platform, Long platform, Leg platform.
+- **Enemies and hazards:** Ninja, Icicle, Fire, Parasite, falling Block, instant-death Giant.
+- **Level flow:** Start, Exit (the rocket), up to 2 Checkpoints, a Fake flag and a runaway Crumb.
+- **Handy:** Erase, Undo, Move view (or the slider), world look (the 5 planets), level length (2000-8000px).
+
+Tap **▶ Test** to play it straight away; **Back to editor** brings you back from the game. Levels save automatically in this browser and never affect campaign progress. **Share** gives a code (starting `PWL1.`) that can be pasted into **Import code** on another device. The editor works with touch and mouse.
+
 ## Controls
 
 | Action                       | Keyboard       | Standard controller    |

@@ -352,6 +352,8 @@ function buildLevel(worldIndex, levelIndex, globalIndex) {
   }
 }
 
+export const WORLD_THEMES = WORLDS
+
 export const CAMPAIGN_LEVELS = WORLDS.flatMap((_, worldIndex) =>
   LEVEL_TEXT[worldIndex].map((_, levelIndex) =>
     buildLevel(worldIndex, levelIndex, worldIndex * 4 + levelIndex)
