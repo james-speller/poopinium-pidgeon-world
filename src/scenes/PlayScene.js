@@ -391,9 +391,19 @@ export default class PlayScene extends Phaser.Scene {
       this.heldKeys.clear()
       this.keyEdges.clear()
     }
+    this.onTouch = ({ key, down }) => {
+      if (!down) {
+        this.heldKeys.delete(key)
+        return
+      }
+      if (this.mode !== 'playing') return
+      this.keyEdges.add(key)
+      this.heldKeys.add(key)
+    }
     window.addEventListener('keydown', this.onKeyDown)
     window.addEventListener('keyup', this.onKeyUp)
     window.addEventListener('blur', this.onBlur)
+    this.game.events.on('ui:touch', this.onTouch)
   }
 
   handleAction(action) {
@@ -887,6 +897,7 @@ export default class PlayScene extends Phaser.Scene {
 
   cleanUp() {
     this.game.events.off('ui:action', this.actionHandler)
+    this.game.events.off('ui:touch', this.onTouch)
     window.removeEventListener('keydown', this.onKeyDown)
     window.removeEventListener('keyup', this.onKeyUp)
     window.removeEventListener('blur', this.onBlur)

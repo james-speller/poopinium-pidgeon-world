@@ -67,6 +67,27 @@
               </div>
             </div>
           </div>
+          <div class="touch-controls" id="touch-controls" aria-label="Touch controls">
+            <div class="touch-group">
+              <button type="button" class="touch-btn dpad" data-key="LEFT" aria-label="Move left">
+                ◀
+              </button>
+              <button type="button" class="touch-btn dpad" data-key="RIGHT" aria-label="Move right">
+                ▶
+              </button>
+            </div>
+            <div class="touch-group">
+              <button type="button" class="touch-btn small" data-key="DOWN" aria-label="Slam down">
+                SLAM<br />▼
+              </button>
+              <button type="button" class="touch-btn fire" data-key="X" aria-label="Fire kangaroo">
+                FIRE
+              </button>
+              <button type="button" class="touch-btn jump" data-key="SPACE" aria-label="Jump or flap">
+                JUMP
+              </button>
+            </div>
+          </div>
           <div class="status-bar">
             <span id="health" aria-label="Health">♥ ♥ ♥ ♥ ♥ ♥ ♥ ♥ ♥ ♥</span
             ><span id="flaps">FLAPS 2/2</span><span id="deaths">RETRIES 0</span
@@ -122,29 +143,6 @@
         <span id="save-status">Progress saves in this browser at checkpoints.</span
         ><span id="controller-status">Controller: press a button to connect</span>
       </div>
-      <section class="feedback-card">
-        <div>
-          <p class="eyebrow">CO-DESIGNER'S LOG</p>
-          <h2>What should we make sillier?</h2>
-          <p>
-            Which world theme worked best? Which trap felt unfair?<br />How did the prawn
-            boss and kangaroos feel?
-          </p>
-        </div>
-        <div class="feedback-form">
-          <label for="feedback">Your playtest notes</label
-          ><textarea
-            id="feedback"
-            rows="3"
-            placeholder="The bridge got me. I want more kangaroos..."
-          ></textarea>
-          <div>
-            <button id="copy-feedback" class="secondary" type="button">
-              Copy feedback</button
-            ><span id="feedback-status">Notes stay in this browser.</span>
-          </div>
-        </div>
-      </section>
       <footer>
         <span>PIDGEONWORLD / FAMILY PLAYTEST</span
         ><span>10 hearts. Unlimited retries. Questionable infrastructure.</span>

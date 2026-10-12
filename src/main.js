@@ -2,6 +2,10 @@ import './style.css'
 import { LEVEL_BY_ID, WORLD_LIST } from './data/campaign.js'
 import { createGame } from './game/createGame.js'
 
+// Set before the game boots so Phaser sizes its canvas to the touch layout.
+if (matchMedia('(pointer: coarse)').matches || new URLSearchParams(location.search).has('touch'))
+  document.documentElement.classList.add('touch-ui')
+
 const { game, dispose } = createGame({ parentId: 'game-container' })
 const get = (id) => document.getElementById(id)
 const setText = (id, text) => {
@@ -37,6 +41,32 @@ restart.addEventListener('click', () => {
 get('pause-button').addEventListener('click', () => {
   action(currentMode === 'playing' ? 'pause' : 'resume')
   focusGame()
+})
+const touchControls = get('touch-controls')
+touchControls.addEventListener('contextmenu', (event) => event.preventDefault())
+touchControls.querySelectorAll('[data-key]').forEach((button) => {
+  const key = button.dataset.key
+  let activePointer = null
+  button.addEventListener('pointerdown', (event) => {
+    event.preventDefault()
+    if (activePointer !== null) return
+    activePointer = event.pointerId
+    try {
+      button.setPointerCapture(event.pointerId)
+    } catch {
+      /* Capture is only a convenience; the buttons still work without it. */
+    }
+    button.classList.add('pressed')
+    game.events.emit('ui:touch', { key, down: true })
+  })
+  const release = (event) => {
+    if (event.pointerId !== activePointer) return
+    activePointer = null
+    button.classList.remove('pressed')
+    game.events.emit('ui:touch', { key, down: false })
+  }
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture'])
+    button.addEventListener(type, release)
 })
 window.addEventListener('blur', () => action('pause'))
 document.addEventListener('visibilitychange', () => {
@@ -180,34 +210,6 @@ game.events.on('ui:state', (state) => {
     restart.textContent = 'Start level over'
     restart.hidden = state.checkpoint === 0
     setText('overlay-note', 'Choose any unlocked level on the right · One player · No easy mode')
-  }
-})
-
-const feedback = get('feedback')
-try {
-  feedback.value = localStorage.getItem('pidgeonworld-feedback-v2') || ''
-} catch {
-  /* Optional local notes. */
-}
-feedback.addEventListener('focus', () => action('pause'))
-feedback.addEventListener('input', () => {
-  try {
-    localStorage.setItem('pidgeonworld-feedback-v2', feedback.value)
-    setText('feedback-status', 'Saved here. Nothing sent online.')
-  } catch {
-    setText('feedback-status', 'Storage unavailable—copy your notes before leaving.')
-  }
-})
-get('copy-feedback').addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText(
-      `PidgeonWorld campaign feedback (${latestState?.completedLevels.length || 0}/20 levels)\n${feedback.value}`
-    )
-    setText('feedback-status', 'Copied! Paste into our conversation.')
-  } catch {
-    feedback.focus()
-    feedback.select()
-    setText('feedback-status', 'Press Ctrl+C to copy the selected notes.')
   }
 })
 

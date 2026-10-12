@@ -36,7 +36,7 @@ Every level also carries one of four rotating troll jokes: a misleading sign, a 
 
 You have ten hearts. Checkpoints refill health. Gigantic creatures and pits cause instant checkpoint retries. Retries are unlimited. The boss has its own health display.
 
-Use the feedback box to record which levels or hazards were funny, confusing, or frustrating. Notes stay in the browser until copied.
+On touch devices (tablets and phones) on-screen buttons appear under the game: left/right arrows, Jump, Fire and Slam. Add `?touch=1` to the address to show them on any device. The in-page feedback box was removed for now.
 
 ## Scope
 
