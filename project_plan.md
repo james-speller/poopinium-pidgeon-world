@@ -154,10 +154,25 @@ A normal platforming section (levels 1–3 checkpoints, the giant creature, the 
 | Downward slam    | S or down arrow          | Right face button (B / Circle) |
 | Pause / resume   | Escape or P              | Start                          |
 | Retry checkpoint | R                        | Start, then B / Circle         |
+| Helmet off (Venus only, fatal) | L          | (none)                         |
 
 Jump and flap require separate presses. A ground jump does not spend either flap. Landing restores two flaps. Slam accelerates downward and defeats ordinary enemies on contact. Normal contact costs one heart, with a short invulnerability window. Gigantic creatures bypass hearts and invulnerability. Pits also restart the checkpoint. Shots bounce, have a 350 ms cooldown, and expire so they cannot accumulate forever.
 
+### Bonus worlds: Banana World (6) and Venus (7)
+
+Both bonus worlds are open from the start and sit outside the five-world story. Venus is a golden sulphur-cloud planet where the pigeon wears a space suit; its enemies are the chasing Venera robots instead of ninjas and parasites (see the README for the full robot list).
+
+#### Venus helmet (requirements added 2026-10-29)
+
+- **Take the helmet off with L.** On Venus (campaign levels and custom levels using the Venus look) pressing **L** takes the pigeon's helmet off. It does nothing in any other world. On touch devices a red **HELMET OFF** button appears on Venus only.
+- **It is instantly fatal.** Taking the helmet off kills the pigeon immediately and forces a respawn: the same death as any other (a retry is counted, the pigeon returns to the latest checkpoint with ten hearts and a short invulnerability window).
+- **It explodes.** The pigeon goes off in the same big fiery explosion used by the left-edge blast (rings, sparks, screen shake and flash), with a "KABOOM!" pop-up and a Mission Control line.
+- **The explosion spawns two Venera robots.** Two Venera 4 robots appear where the pigeon exploded, hop apart, and then behave like any other Venera (patrol, then chase the pigeon within range, never into a pit). They stay for the rest of that run of the level, so repeated helmet removals leave a crowd.
+- **Not a retry shortcut:** the R key still retries without spawning anything.
+
 ### Acceptance criteria
+
+- On Venus, pressing L kills the pigeon, plays the explosion, respawns it at its checkpoint, and leaves exactly two new Venera 4 robots at the death spot. Pressing L on worlds 1 to 6 does nothing.
 
 - A new save starts at level 1-1 with only that level unlocked.
 - Completing any non-finale level unlocks the next level in sequence and shows a level-complete overlay.

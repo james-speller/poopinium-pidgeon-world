@@ -222,6 +222,42 @@ h1 span {
   letter-spacing: 0.5px;
   margin: 20px 0 0;
 }
+.level-picker {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: #060a12ee;
+}
+.picker-card {
+  width: min(560px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 18px;
+  border: 1px solid #3e5260;
+  border-radius: 12px;
+  background: #101b25;
+}
+.picker-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.picker-card h2 {
+  margin: 0;
+  font: 600 22px 'Space Grotesk', sans-serif;
+}
+.picker-card .level-pip {
+  width: 52px;
+  height: 52px;
+  font-size: 18px;
+}
+.picker-card .world-heading {
+  font-size: 16px;
+}
 .toolbar-buttons {
   display: flex;
   align-items: center;
@@ -535,6 +571,10 @@ h1 span {
   min-width: 35px;
   height: 35px;
   font-size: 8px;
+}
+.touch-btn.helmet {
+  border-color: #ff6a52;
+  background: #3a1d1b;
 }
 .touch-btn.pressed {
   background: #b1ed8d;

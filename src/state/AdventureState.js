@@ -1,4 +1,4 @@
-import { DEFAULT_LEVEL, LEVEL_BY_ID, nextLevelId } from '../data/campaign.js'
+import { BONUS_LEVEL_IDS, DEFAULT_LEVEL, LEVEL_BY_ID, nextLevelId } from '../data/campaign.js'
 
 export const SAVE_KEY = 'pidgeonworld-campaign-v3'
 
@@ -9,7 +9,12 @@ export function normalizeSave(value = {}) {
     : []
   const unlockedSource = Array.isArray(value.unlockedLevels) ? value.unlockedLevels : []
   const unlockedLevels = [
-    ...new Set([DEFAULT_LEVEL, ...unlockedSource.filter((id) => LEVEL_BY_ID[id]), ...completedLevels]),
+    ...new Set([
+      DEFAULT_LEVEL,
+      ...BONUS_LEVEL_IDS,
+      ...unlockedSource.filter((id) => LEVEL_BY_ID[id]),
+      ...completedLevels,
+    ]),
   ]
   const levelCheckpoints = {}
   for (const id of Object.keys(LEVEL_BY_ID)) {
@@ -71,6 +76,11 @@ export class AdventureState {
   get checkpointX() {
     return this.level.checkpoints[this.checkpoint]
   }
+  // Walkable-top y of the current checkpoint when it is not on the floor (custom levels
+  // can put checkpoints on platforms); null means the floor.
+  get checkpointY() {
+    return this.level.checkpointYs?.[this.checkpoint] ?? null
+  }
   get completed() {
     if (this.customLevel) return this.customDone === true
     return this.completedLevels.includes(this.currentLevel)
@@ -105,7 +115,12 @@ export class AdventureState {
     return this.hearts === 0
   }
   activateCheckpoint(index) {
-    if (!Number.isInteger(index) || index < 1 || index > 2 || index <= this.checkpoint)
+    if (
+      !Number.isInteger(index) ||
+      index < 1 ||
+      index > this.level.checkpoints.length - 1 ||
+      index <= this.checkpoint
+    )
       return false
     this.checkpoint = index
     this.hearts = 10

@@ -1,5 +1,5 @@
 import './style.css'
-import { LEVEL_BY_ID, WORLD_LIST } from './data/campaign.js'
+import { CAMPAIGN_LEVELS, LEVEL_BY_ID, WORLD_LIST } from './data/campaign.js'
 import { Editor } from './editor/Editor.js'
 import { createGame } from './game/createGame.js'
 
@@ -16,6 +16,8 @@ const overlay = get('game-overlay')
 const play = get('play-button')
 const restart = get('restart-button')
 const selector = get('demo-selector')
+const picker = get('level-picker')
+const pickerMap = get('picker-map')
 let currentMode = 'menu'
 let overlayKey = ''
 let mapKey = ''
@@ -74,8 +76,8 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) action('pause')
 })
 
-function renderWorldMap(state) {
-  selector.innerHTML = ''
+function renderWorldMap(state, container) {
+  container.innerHTML = ''
   WORLD_LIST.forEach((world, worldIndex) => {
     const group = document.createElement('div')
     group.className = 'world-group'
@@ -102,12 +104,15 @@ function renderWorldMap(state) {
       } else {
         button.textContent = level.finalBoss ? 'B' : String(level.levelIndex + 1)
         button.setAttribute('aria-label', level.name)
-        button.addEventListener('click', () => select(level.id))
+        button.addEventListener('click', () => {
+          picker.hidden = true
+          select(level.id)
+        })
       }
       row.appendChild(button)
     })
     group.appendChild(row)
-    selector.appendChild(group)
+    container.appendChild(group)
   })
 }
 
@@ -132,7 +137,7 @@ game.events.on('ui:state', (state) => {
   setText(
     'save-status',
     state.saveAvailable
-      ? `Autosave · ${state.completedLevels.length}/20 levels completed · This browser only`
+      ? `Autosave · ${state.completedLevels.length}/${CAMPAIGN_LEVELS.length} levels completed · This browser only`
       : 'Saving unavailable. You can still play.'
   )
   setText(
@@ -141,12 +146,14 @@ game.events.on('ui:state', (state) => {
       ? 'Controller connected · Start = pause'
       : 'Controller: press a button to connect'
   )
+  get('helmet-button').hidden = !state.venus
   get('pause-button').disabled = !['playing', 'paused'].includes(state.mode)
   setText('pause-button', state.mode === 'paused' ? 'Resume (Esc)' : 'Pause (Esc)')
   const nextMapKey = `${state.id}-${state.unlockedLevels.length}-${state.completedLevels.length}`
   if (nextMapKey !== mapKey) {
     mapKey = nextMapKey
-    renderWorldMap(state)
+    renderWorldMap(state, selector)
+    renderWorldMap(state, pickerMap)
   }
   overlay.hidden = state.mode === 'playing'
   get('editor-button').hidden = !state.custom
@@ -184,7 +191,7 @@ game.events.on('ui:state', (state) => {
       setText('overlay-title', 'Another Australian Pigeon is free.')
       setText(
         'overlay-copy',
-        `The prawn suit is de-shelled and your mate is rescued. Full campaign completed in ${state.completedLevels.length}/20 levels. Replay any world from the mission panel, or start the finale again.`
+        'The prawn suit is de-shelled and your mate is rescued. Replay any world from the mission panel, visit Banana World if you have not yet, or start the finale again.'
       )
       play.textContent = 'Replay the finale →'
     } else if (state.outcome === 'world') {
@@ -193,7 +200,7 @@ game.events.on('ui:state', (state) => {
         'overlay-copy',
         next
           ? `World complete. Board the spaceship for ${next.worldName}, or replay any unlocked level from the mission panel.`
-          : 'World complete.'
+          : 'Every level in this world is cleared. Pick any level from the mission panel, or replay this one.'
       )
       play.textContent = next ? `Fly to ${next.worldName} →` : 'Replay this level →'
     } else {
@@ -212,7 +219,7 @@ game.events.on('ui:state', (state) => {
       'overlay-note',
       state.custom
         ? 'Made in the level editor · Your campaign progress is untouched'
-        : `${state.completedLevels.length}/20 levels completed · Progress saved`
+        : `${state.completedLevels.length}/${CAMPAIGN_LEVELS.length} levels completed · Progress saved`
     )
   } else {
     setText(
@@ -250,6 +257,13 @@ const editor = new Editor({
     action({ type: 'custom', level })
     focusGame()
   },
+})
+get('levels-button').addEventListener('click', () => {
+  action('pause')
+  picker.hidden = false
+})
+get('picker-close').addEventListener('click', () => {
+  picker.hidden = true
 })
 get('editor-open').addEventListener('click', () => {
   action('pause')

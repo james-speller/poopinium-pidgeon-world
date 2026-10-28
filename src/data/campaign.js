@@ -1,4 +1,60 @@
-import { enemyPositions, placeOnSolid, platformsForGaps, spreadGaps } from './layout.js'
+import {
+  bananaPositions,
+  enemyPositions,
+  patrolRange,
+  placeOnSolid,
+  platformsForGaps,
+  spreadGaps,
+} from './layout.js'
+
+// The ten Venera robots, each after a real Soviet Venus probe. They chase the pigeon (the
+// radar one keeps its distance and shoots instead); the types differ in speed, toughness
+// and behaviour: walk, charge (wind up, then dash), float (parachute), leap, shoot.
+// Listed gentlest first, because they are handed out in this order.
+export const VENERA_TYPES = [
+  { key: 'venera', name: 'Venera 4', scale: 0.9, speed: 85, chaseSpeed: 125, hp: 1, behavior: 'walk' },
+  { key: 'venera1', name: 'Venera 1', scale: 0.85, speed: 130, chaseSpeed: 185, hp: 1, behavior: 'walk' },
+  { key: 'venera7', name: 'Venera 7', scale: 0.9, speed: 95, chaseSpeed: 130, hp: 1, hop: true, behavior: 'walk' },
+  { key: 'venera9', name: 'Venera 9', scale: 0.95, speed: 55, chaseSpeed: 85, hp: 2, behavior: 'walk' },
+  { key: 'venera6', name: 'Venera 6', scale: 0.85, speed: 60, chaseSpeed: 80, hp: 1, behavior: 'float' },
+  { key: 'venera3', name: 'Venera 3', scale: 0.85, speed: 90, chaseSpeed: 80, hp: 1, behavior: 'charge' },
+  { key: 'venera8', name: 'Venera 8', scale: 0.9, speed: 70, chaseSpeed: 190, hp: 1, behavior: 'leap' },
+  { key: 'venera13', name: 'Venera 13', scale: 0.9, speed: 40, chaseSpeed: 70, hp: 3, behavior: 'walk' },
+  { key: 'venera10', name: 'Venera 10', scale: 0.85, speed: 85, chaseSpeed: 115, hp: 1, behavior: 'walk', splits: true },
+  { key: 'venera15', name: 'Venera 15', scale: 0.85, speed: 45, chaseSpeed: 0, hp: 1, behavior: 'shoot' },
+  // Venera 14: a front shield that blocks kangaroos; flatten it or get behind it.
+  { key: 'venera14', name: 'Venera 14', scale: 0.9, speed: 55, chaseSpeed: 100, hp: 1, behavior: 'walk', shield: true },
+  // Venera 12: starts buried in the ground and erupts when the pigeon walks past.
+  { key: 'venera12', name: 'Venera 12', scale: 0.9, speed: 0, chaseSpeed: 150, hp: 1, behavior: 'ambush' },
+  // Venera 2: the flyby probe. Strafes back and forth at head height, very fast.
+  { key: 'venera2', name: 'Venera 2', scale: 0.9, speed: 210, chaseSpeed: 0, hp: 1, behavior: 'strafe', patrol: 420 },
+  // Vega 1: a balloon that drifts high up and drops acid bombs on the pigeon below.
+  { key: 'vega', name: 'Vega 1', scale: 0.85, speed: 50, chaseSpeed: 0, hp: 1, behavior: 'bomb', patrol: 300 },
+]
+
+// Which Venera robots appear on each Venus level, gentlest first. Every type is on Venus.
+const VENUS_SCHEDULE = [
+  ['venera', 'venera1', 'venera7'],
+  ['venera9', 'venera6', 'venera3', 'venera2'],
+  ['venera8', 'venera14', 'venera13', 'venera12', 'venera10'],
+  ['venera15', 'vega', 'venera12', 'venera14', 'venera2', 'venera10'],
+]
+
+// Gives each enemy a Venera type, taken in order from `order` (a list of type keys; every
+// type in turn by default), and the stretch of solid ground it may chase the pigeon along,
+// so it never chases itself into a pit. Flyers get a wide patrol range of their own.
+export function veneraEnemies(enemies, gaps, width, order = VENERA_TYPES.map((type) => type.key)) {
+  return enemies.map((enemy, index) => {
+    const type = VENERA_TYPES.find((candidate) => candidate.key === order[index % order.length])
+    const [chaseMin, chaseMax] = patrolRange(gaps, enemy.x, 520, width)
+    const robot = { ...enemy, ...type, chaseMin, chaseMax }
+    if (type.patrol) {
+      robot.min = Math.max(60, enemy.x - type.patrol)
+      robot.max = Math.min(width - 60, enemy.x + type.patrol)
+    }
+    return robot
+  })
+}
 
 const START_MARGIN = 480
 const END_MARGIN = 480
@@ -69,14 +125,55 @@ const WORLDS = [
     enemyTint: 0xffffff,
     giantTint: 0x6c8f55,
   },
+  {
+    id: 'w6',
+    name: 'Banana World',
+    sky: 0x2f7a8f,
+    ground: 0xf2d544,
+    soil: 0x7a5420,
+    accent: 0xfff3a0,
+    sun: 0xffe15c,
+    gravity: 1100,
+    friction: 800,
+    enemyTint: 0xffe9a0,
+    giantTint: 0xd9a441,
+    // The pigeon dresses for the occasion.
+    costume: 'tux',
+  },
+  {
+    id: 'w7',
+    name: 'Venus',
+    sky: 0xc98a2b,
+    ground: 0xb0733a,
+    soil: 0x5a3719,
+    accent: 0xffd27a,
+    sun: 0xfff0c0,
+    // Venus has about 90% of Earth's gravity.
+    gravity: 1000,
+    friction: 800,
+    enemyTint: 0xffffff,
+    giantTint: 0xffe6bf,
+    costume: 'space',
+    // No ninjas or parasites here: only the old Soviet Venera probes.
+    enemyKey: 'venera',
+    enemyChase: true,
+    enemyScale: 0.9,
+    enemyMessage: 'Venera robot: unauthorised pigeon detected.',
+    giantKey: 'venera-giant',
+    // Venus parasites drift slowly in the clouds and are not the EP17A kind.
+    swarmKey: 'venus-parasite',
+    swarmStyle: 'drift',
+    swarmMessage: 'Venus parasite: acid hugs are not covered by insurance.',
+  },
 ]
 
-// Per-world-index (li 0-3): [width, gapCount, gapWidth, enemyCount]
+// Per-world-index (li 0-3): [width, gapCount, gapWidth, enemyCount, bananaCount]
+// Every world has roaming bananas; Banana World overrides the count with its own.
 const SIZE_BY_INDEX = [
-  [3000, 2, 230, 3],
-  [3400, 3, 250, 4],
-  [3800, 3, 280, 5],
-  [4200, 4, 280, 6],
+  [3000, 2, 230, 3, 1],
+  [3400, 3, 250, 4, 2],
+  [3800, 3, 280, 5, 2],
+  [4200, 4, 280, 6, 3],
 ]
 
 const JOKE_CYCLE = ['runaway', 'legPlatform', 'fakeFlag']
@@ -259,6 +356,87 @@ const LEVEL_TEXT = [
       finalBoss: true,
     },
   ],
+  [
+    {
+      name: 'Banana World I',
+      short: 'AUSTRALIAN. YELLOW. CURVED.',
+      intro:
+        'A planet made entirely of banana. The bananas are also Australian, and they would like a word.',
+      message: 'Kangaroos make bananas bounce. Bananas make ninjas disappear.',
+      trap: 'bridge',
+      signText: 'BANANA BRIDGE: TOTALLY RIPE',
+      bananas: 2,
+    },
+    {
+      name: 'Banana World II',
+      short: 'THE BUNCH IS GETTING BIGGER.',
+      intro: 'More bananas. They travel in bunches and nobody asked them to.',
+      message: 'Fire a kangaroo at a banana, then watch it go. Very high.',
+      trap: 'earthBlock',
+      signText: 'COCONUTS: NOT OUR FAULT',
+      bananas: 3,
+    },
+    {
+      name: 'Banana World III',
+      short: 'PEEL. PANIC. REPEAT.',
+      intro: 'The bananas have formed a rolling pack. They are mostly friendly.',
+      message: 'Bananas bounce off you without hurting. Use them.',
+      trap: 'bridge',
+      signText: 'SLIPPERY WHEN RIPE',
+      bananas: 4,
+    },
+    {
+      name: 'Banana World IV',
+      short: 'THE GREAT BANANA STAMPEDE.',
+      intro: 'Five bananas, one enormous gorilla, and a rocket that smells faintly of fruit.',
+      message: 'Board the ship. The gorilla is definitely not a banana.',
+      trap: 'earthBlock',
+      signText: 'TOTALLY NORMAL WILDLIFE AHEAD',
+      giant: true,
+      bananas: 5,
+    },
+  ],
+  [
+    {
+      name: 'Venus I',
+      short: 'HOT. SOVIET. VERY PRESSURISED.',
+      intro:
+        'A cloud-wrapped furnace of a planet. The only locals are rusty Soviet probes that never got the message to stop.',
+      message: 'Venera robots are still on duty. Kangaroos and bananas work on them.',
+      trap: 'fire',
+      signText: 'ATMOSPHERIC PRESSURE: 92 BAR (RECOMMENDED)',
+      swarm: 2,
+    },
+    {
+      name: 'Venus II',
+      short: 'THE SKY IS SULPHURIC.',
+      intro: 'Rocks drop out of the acid clouds. The Venera robots march on regardless.',
+      message: 'Look up. The clouds are made of sulphuric acid and bad intentions.',
+      trap: 'earthBlock',
+      signText: 'ACID RAIN SHELTER (NO ROOF)',
+      swarm: 3,
+    },
+    {
+      name: 'Venus III',
+      short: 'MORE PROBES. NO NOTES.',
+      intro:
+        'Venera 4 reported home until it was crushed. These ones did not get the memo.',
+      message: 'The lava vents are timed. The probes are not.',
+      trap: 'fire',
+      signText: 'NO PARACHUTES BEYOND THIS POINT',
+      swarm: 4,
+    },
+    {
+      name: 'Venus IV',
+      short: 'A VERY LARGE PROBE.',
+      intro: 'The oldest Venera has grown to the size of a house. It is still very polite about it.',
+      message: 'Board the ship. Do not touch the enormous probe.',
+      trap: 'fire',
+      signText: 'TOTALLY NORMAL WILDLIFE AHEAD',
+      giant: true,
+      swarm: 5,
+    },
+  ],
 ]
 
 const TRAP_SIGN_DEFAULT = {
@@ -282,7 +460,7 @@ const BOSS_ARENA_WIDTH = 1900
 function buildLevel(worldIndex, levelIndex, globalIndex) {
   const world = WORLDS[worldIndex]
   const text = LEVEL_TEXT[worldIndex][levelIndex]
-  const [baseWidth, gapCount, gapWidth, enemyCount] = SIZE_BY_INDEX[levelIndex]
+  const [baseWidth, gapCount, gapWidth, enemyCount, defaultBananas] = SIZE_BY_INDEX[levelIndex]
   const finalBoss = text.finalBoss === true
   const platformWidth = finalBoss ? Math.round(baseWidth * 0.82) : baseWidth
   const width = finalBoss ? platformWidth + BOSS_ARENA_WIDTH : baseWidth
@@ -328,13 +506,31 @@ function buildLevel(worldIndex, levelIndex, globalIndex) {
     friction: world.friction,
     enemyTint: world.enemyTint,
     giantTint: world.giantTint,
+    costume: world.costume,
+    enemyKey: world.enemyKey,
+    enemyChase: world.enemyChase === true,
+    enemyScale: world.enemyScale,
+    enemyMessage: world.enemyMessage,
+    giantKey: world.giantKey,
+    swarmKey: world.swarmKey,
+    swarmStyle: world.swarmStyle,
+    swarmMessage: world.swarmMessage,
+    extraSwarm: text.swarm || 0,
     width,
     platformWidth,
     gaps,
     checkpoints,
     exitX,
     platforms,
-    enemies,
+    enemies: world.enemyChase
+      ? veneraEnemies(enemies, gaps, platformWidth, VENUS_SCHEDULE[levelIndex])
+      : enemies,
+    bananas: bananaPositions(
+      gaps,
+      platformWidth,
+      text.bananas ?? defaultBananas,
+      enemies.map((enemy) => enemy.x)
+    ),
     trap: text.trap,
     signText: text.signText || TRAP_SIGN_DEFAULT[text.trap],
     hazardMessage: TRAP_HAZARD_MESSAGE[text.trap],
@@ -368,9 +564,17 @@ export const LEVEL_ORDER = CAMPAIGN_LEVELS.map((level) => level.id)
 
 export const DEFAULT_LEVEL = LEVEL_ORDER[0]
 
+// Banana World and Venus are bonus worlds: open from the start, played independently of
+// the story.
+export const BONUS_LEVEL_IDS = CAMPAIGN_LEVELS.filter((level) =>
+  ['w6', 'w7'].includes(level.world)
+).map((level) => level.id)
+
 export function nextLevelId(id) {
   const index = LEVEL_ORDER.indexOf(id)
   if (index === -1 || index === LEVEL_ORDER.length - 1) return null
+  // The story ends at the prawn-suit boss; Banana World does not follow it.
+  if (LEVEL_BY_ID[id].finalBoss) return null
   return LEVEL_ORDER[index + 1]
 }
 

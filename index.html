@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="A very silly pigeon platform adventure. Twenty levels across five planets, one big prawn suit."
+      content="A very silly pigeon platform adventure. Twenty-eight levels across seven planets, one big prawn suit, a lot of bananas and some very old Soviet robots."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>PidgeonWorld · Outer America</title>
@@ -18,11 +18,11 @@
             / SPACE NONSENSE</span
           ></a
         >
-        <span class="build-tag"><i></i> FULL CAMPAIGN · 20 LEVELS · 0.4</span>
+        <span class="build-tag"><i></i> FULL CAMPAIGN · 28 LEVELS · 0.6</span>
       </header>
       <section class="intro">
         <div>
-          <p class="eyebrow">ONE PIGEON. FIVE PLANETS. TERRIBLE ODDS.</p>
+          <p class="eyebrow">ONE PIGEON. SEVEN PLANETS. TERRIBLE ODDS.</p>
           <h1>Made In Australia.<br /><span>Lost in absolutely everything.</span></h1>
         </div>
         <p class="intro-copy">
@@ -37,6 +37,7 @@
               ><span class="live-dot"></span> <span id="world-name">OUTER AMERICA</span>
               <b id="world-number">1—1</b></span
             ><span class="toolbar-buttons"
+              ><button id="levels-button" type="button">☰ Levels</button
               ><button id="editor-open" type="button">✎ Level editor</button
               ><button id="pause-button" type="button">Pause <kbd>Esc</kbd></button></span
             >
@@ -86,6 +87,16 @@
               </button>
             </div>
             <div class="touch-group">
+              <button
+                type="button"
+                class="touch-btn small helmet"
+                id="helmet-button"
+                data-key="L"
+                aria-label="Take helmet off (Venus only, fatal)"
+                hidden
+              >
+                HELMET<br />OFF
+              </button>
               <button type="button" class="touch-btn small" data-key="DOWN" aria-label="Slam down">
                 SLAM<br />▼
               </button>
@@ -157,6 +168,15 @@
         ><span>10 hearts. Unlimited retries. Questionable infrastructure.</span>
       </footer>
     </main>
+    <div class="level-picker" id="level-picker" hidden>
+      <div class="picker-card">
+        <header>
+          <h2>Choose a level</h2>
+          <button class="secondary" id="picker-close" type="button">Close</button>
+        </header>
+        <div class="world-map" id="picker-map"></div>
+      </div>
+    </div>
     <div id="editor-root" hidden></div>
     <script type="module" src="/src/main.js"></script>
   </body>

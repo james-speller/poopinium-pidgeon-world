@@ -39,6 +39,39 @@ export function enemyPositions(gaps, width, count) {
   return list
 }
 
+// The widest stretch of solid ground around x (up to `reach` each way) for roaming things.
+export function patrolRange(gaps, x, reach, width, margin = 40) {
+  let min = x
+  let max = x
+  while (x - min < reach && min - 10 > 60 && isSolid(gaps, min - 10, margin)) min -= 10
+  while (max - x < reach && max + 10 < width - 60 && isSolid(gaps, max + 10, margin)) max += 10
+  return [min, max]
+}
+
+// Bananas start well away from enemies (and each other) so they don't flatten a ninja
+// before the player has even seen them; they meet later as everything roams.
+export function bananaPositions(gaps, width, count, avoid = []) {
+  const list = []
+  for (let i = 0; i < count; i++) {
+    const want = width * (0.2 + (0.66 * i) / Math.max(1, count - 1))
+    let chosen = null
+    for (const offset of [0, 140, -140, 280, -280, 420, -420]) {
+      const x = placeOnSolid(gaps, want + offset, width, 100)
+      const clear = [...avoid, ...list.map((banana) => banana.x)].every(
+        (other) => Math.abs(other - x) >= 260
+      )
+      if (clear) {
+        chosen = x
+        break
+      }
+    }
+    const x = chosen ?? placeOnSolid(gaps, want, width, 100)
+    const [min, max] = patrolRange(gaps, x, 220, width)
+    list.push({ x, min, max })
+  }
+  return list
+}
+
 export function platformsForGaps(gaps) {
   return gaps.map(([a, b], i) => ({
     x: Math.round((a + b) / 2),

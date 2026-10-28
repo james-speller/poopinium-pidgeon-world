@@ -1,4 +1,4 @@
-import { WORLD_THEMES } from '../data/campaign.js'
+import { VENERA_TYPES, WORLD_THEMES } from '../data/campaign.js'
 import {
   COLUMN,
   FLOOR_Y,
@@ -10,6 +10,7 @@ import {
   isPitAt,
   loadCustomLevels,
   normalizeCustomLevel,
+  platformUnder,
   saveCustomLevels,
   toRuntimeLevel,
   validateForPlay,
@@ -63,6 +64,12 @@ const TOOLS = [
     label: 'Ninja',
     help: 'Tap the ground to place a ninja that patrols back and forth.',
   },
+  {
+    id: 'banana',
+    icon: '🍌',
+    label: 'Banana',
+    help: 'A roaming Australian banana. Shoot it to send it flying. It flattens ninjas.',
+  },
   { id: 'icicle', icon: '🧊', label: 'Icicle', help: 'Hangs up high and drops when you get near.' },
   { id: 'fire', icon: '🔥', label: 'Fire', help: 'A fireball that leaps up and down.' },
   {
@@ -82,7 +89,7 @@ const TOOLS = [
     id: 'checkpoint',
     icon: '🚩',
     label: 'Checkpoint',
-    help: 'Up to 2 checkpoints. Tap one again to remove it.',
+    help: 'Checkpoints refill your hearts. Tap the ground, or tap just above a platform to put one on it. Tap one again to remove it.',
   },
   { id: 'start', icon: '🐦', label: 'Start', help: 'Where the bird begins.' },
   { id: 'exit', icon: '🚀', label: 'Exit', help: 'The rocket. Reach it to win.' },
@@ -315,7 +322,16 @@ export class Editor {
       const title = document.createElement('strong')
       title.textContent = level.name
       const meta = document.createElement('small')
-      const things = level.enemies.length + level.hazards.length + level.platforms.length
+      const things =
+        level.enemies.length +
+        level.bananas.length +
+        level.hazards.length +
+        level.platforms.length +
+        level.giants.length +
+        level.crumbs.length +
+        level.fakeFlags.length +
+        level.checkpoints.length +
+        level.ledgeCheckpoints.length
       meta.textContent = `${theme.name} · ${level.width}px long · ${things} things`
       info.append(title, meta)
       const actions = document.createElement('div')
@@ -390,10 +406,10 @@ export class Editor {
         this.openHub()
         break
       case 'narrower':
-        this.setWidth(this.level.width - 400)
+        this.setWidth(this.level.width - 800)
         break
       case 'wider':
-        this.setWidth(this.level.width + 400)
+        this.setWidth(this.level.width + 800)
         break
       case 'undo':
         this.undo()
@@ -550,11 +566,13 @@ export class Editor {
       pits: level.pits.filter((column) => column < columns),
       platforms: level.platforms.filter((platform) => platform.x <= limit),
       enemies: level.enemies.filter((x) => x <= limit),
+      bananas: level.bananas.filter((x) => x <= limit),
       hazards: level.hazards.filter((hazard) => hazard.x <= limit),
       checkpoints: level.checkpoints.filter((x) => x <= limit),
-      giant: level.giant != null && level.giant <= limit ? level.giant : null,
-      fakeFlag: level.fakeFlag != null && level.fakeFlag <= limit ? level.fakeFlag : null,
-      crumb: level.crumb != null && level.crumb <= limit ? level.crumb : null,
+      ledgeCheckpoints: level.ledgeCheckpoints.filter((spot) => spot.x <= limit),
+      giants: level.giants.filter((x) => x <= limit),
+      fakeFlags: level.fakeFlags.filter((x) => x <= limit),
+      crumbs: level.crumbs.filter((x) => x <= limit),
       start: Math.min(level.start, limit),
       exit: Math.min(level.exit, width - 190),
     })
@@ -661,6 +679,30 @@ export class Editor {
     return clamp(Math.round(y / 20) * 20, low, high)
   }
 
+  // The solid platform a checkpoint tap is aiming at: on the platform or in the air just
+  // above it. Legged platforms are skipped because they wander off.
+  platformTarget(point) {
+    const hits = this.level.platforms.filter(
+      (p) =>
+        !p.legs &&
+        point.x >= p.x - p.w / 2 - 10 &&
+        point.x <= p.x + p.w / 2 + 10 &&
+        point.y >= p.y - 70 &&
+        point.y <= p.y + 20
+    )
+    hits.sort((a, b) => Math.abs(a.y - point.y) - Math.abs(b.y - point.y))
+    return hits[0] || null
+  }
+
+  // Where a checkpoint tapped at `point` would land: on a platform if one is targeted.
+  checkpointSpot(point) {
+    const x = this.snapX(point.x)
+    const platform = this.platformTarget(point)
+    if (!platform) return { x, y: null }
+    const half = platform.w / 2
+    return { x: clamp(x, platform.x - half + 10, platform.x + half - 10), y: platform.y }
+  }
+
   groundObjects() {
     const level = this.level
     return [
@@ -668,13 +710,10 @@ export class Editor {
       { x: level.exit, label: 'exit' },
       ...level.checkpoints.map((x) => ({ x, label: 'checkpoint' })),
       ...level.enemies.map((x) => ({ x, label: 'ninja' })),
-      ...[
-        ['giant', level.giant],
-        ['fake flag', level.fakeFlag],
-        ['crumb', level.crumb],
-      ]
-        .filter(([, x]) => x != null)
-        .map(([label, x]) => ({ x, label })),
+      ...level.bananas.map((x) => ({ x, label: 'banana' })),
+      ...level.giants.map((x) => ({ x, label: 'giant' })),
+      ...level.fakeFlags.map((x) => ({ x, label: 'fake flag' })),
+      ...level.crumbs.map((x) => ({ x, label: 'crumb' })),
     ]
   }
 
@@ -705,7 +744,17 @@ export class Editor {
     if (!first) return
 
     const x = this.snapX(point.x)
-    const groundOnly = ['ninja', 'giant', 'checkpoint', 'start', 'exit', 'fakeflag', 'crumb']
+    const ledge = tool === 'checkpoint' ? this.checkpointSpot(point) : null
+    const groundOnly = [
+      'ninja',
+      'banana',
+      'giant',
+      ...(ledge?.y == null ? ['checkpoint'] : []),
+      'start',
+      'exit',
+      'fakeflag',
+      'crumb',
+    ]
     if (groundOnly.includes(tool) && isPitAt(level, x)) {
       this.toast('That spot is a pit. Put it on the ground.')
       return
@@ -728,6 +777,12 @@ export class Editor {
         this.touch()
         level.enemies.push(x)
         break
+      case 'banana':
+        if (level.bananas.some((bx) => Math.abs(bx - x) < 40)) return
+        if (level.bananas.length >= LIMITS.bananas) return this.toast('That is enough bananas!')
+        this.touch()
+        level.bananas.push(x)
+        break
       case 'icicle':
       case 'fire':
       case 'block':
@@ -741,17 +796,11 @@ export class Editor {
         break
       }
       case 'giant':
-        this.touch()
-        level.giant = x
-        break
+        return this.addSpot(level.giants, x, 120, LIMITS.giants, 'giants')
       case 'fakeflag':
-        this.touch()
-        level.fakeFlag = x
-        break
+        return this.addSpot(level.fakeFlags, x, 60, LIMITS.fakeFlags, 'fake flags')
       case 'crumb':
-        this.touch()
-        level.crumb = x
-        break
+        return this.addSpot(level.crumbs, x, 60, LIMITS.crumbs, 'crumbs')
       case 'start':
         this.touch()
         level.start = x
@@ -761,21 +810,38 @@ export class Editor {
         level.exit = x
         break
       case 'checkpoint': {
-        const existing = level.checkpoints.findIndex((cx) => Math.abs(cx - x) < 40)
+        const onPlatform = ledge.y != null
+        const list = onPlatform ? level.ledgeCheckpoints : level.checkpoints
+        const existing = onPlatform
+          ? list.findIndex((spot) => spot.y === ledge.y && Math.abs(spot.x - ledge.x) < 40)
+          : list.findIndex((cx) => Math.abs(cx - x) < 40)
         if (existing !== -1) {
           this.touch()
-          level.checkpoints.splice(existing, 1)
-        } else if (level.checkpoints.length >= LIMITS.checkpoints) {
-          return this.toast('Only 2 checkpoints. Tap one to remove it.')
+          list.splice(existing, 1)
+        } else if (level.checkpoints.length + level.ledgeCheckpoints.length >= LIMITS.checkpoints) {
+          return this.toast(`Only ${LIMITS.checkpoints} checkpoints. Tap one to remove it.`)
+        } else if (onPlatform) {
+          this.touch()
+          list.push({ x: ledge.x, y: ledge.y })
+          list.sort((a, b) => a.x - b.x || a.y - b.y)
         } else {
           this.touch()
-          level.checkpoints.push(x)
-          level.checkpoints.sort((a, b) => a - b)
+          list.push(x)
+          list.sort((a, b) => a - b)
         }
         break
       }
       default:
     }
+    this.draw()
+  }
+
+  // Adds one more of a ground object (giant, fake flag, crumb) unless one is already there.
+  addSpot(list, x, gap, limit, noun) {
+    if (list.some((other) => Math.abs(other - x) < gap)) return
+    if (list.length >= limit) return this.toast(`That is enough ${noun}!`)
+    this.touch()
+    list.push(x)
     this.draw()
   }
 
@@ -829,13 +895,20 @@ export class Editor {
         return
       }
       this.touch()
-      if (box.kind === 'platform') level.platforms.splice(box.index, 1)
+      if (box.kind === 'platform') {
+        level.platforms.splice(box.index, 1)
+        // Checkpoints standing on it go with it.
+        level.ledgeCheckpoints = level.ledgeCheckpoints.filter((spot) =>
+          platformUnder(level.platforms, spot.x, spot.y)
+        )
+      } else if (box.kind === 'ledgecp') level.ledgeCheckpoints.splice(box.index, 1)
       else if (box.kind === 'ninja') level.enemies.splice(box.index, 1)
+      else if (box.kind === 'banana') level.bananas.splice(box.index, 1)
       else if (box.kind === 'hazard') level.hazards.splice(box.index, 1)
       else if (box.kind === 'checkpoint') level.checkpoints.splice(box.index, 1)
-      else if (box.kind === 'giant') level.giant = null
-      else if (box.kind === 'fakeflag') level.fakeFlag = null
-      else if (box.kind === 'crumb') level.crumb = null
+      else if (box.kind === 'giant') level.giants.splice(box.index, 1)
+      else if (box.kind === 'fakeflag') level.fakeFlags.splice(box.index, 1)
+      else if (box.kind === 'crumb') level.crumbs.splice(box.index, 1)
       this.draw()
       return
     }
@@ -874,6 +947,32 @@ export class Editor {
     return { l: x - w / 2, t: top, r: x + w / 2, b: top + h }
   }
 
+  // Enemies and the giant look different on worlds with their own (e.g. Venera robots).
+  enemySprite(x, index = 0) {
+    // On Venus the robots take their types in order, exactly as they do in the game.
+    const type = this.theme.enemyChase ? VENERA_TYPES[index % VENERA_TYPES.length] : null
+    const key = type?.key || this.theme.enemyKey || 'ninja'
+    const size = { ninja: [24, 24], venera1: [50, 46], venera7: [40, 48], venera9: [64, 44] }
+    return this.sprite(
+      key,
+      x,
+      FLOOR_Y,
+      type?.scale ?? this.theme.enemyScale ?? 1.6,
+      'ground',
+      size[key] || [48, 52],
+      '🥷'
+    )
+  }
+
+  pigeonKey() {
+    return this.theme.costume ? `pigeon-${this.theme.costume}` : 'pigeon'
+  }
+
+  giantSprite(x) {
+    const key = this.theme.giantKey || 'giant'
+    return this.sprite(key, x, FLOOR_Y, 1, 'ground', key === 'giant' ? [126, 84] : [139, 151], '👹')
+  }
+
   record(kind, index, box) {
     if (this.recording) this.hitBoxes.push({ kind, index, ...box })
   }
@@ -900,20 +999,25 @@ export class Editor {
         this.drawHazard(this.tool, x, 0)
         break
       case 'ninja':
-        this.sprite('ninja', x, FLOOR_Y, 1.6, 'ground', [24, 24], '🥷')
+        this.enemySprite(x, this.level.enemies.length)
+        break
+      case 'banana':
+        this.sprite('banana', x, FLOOR_Y, 1.4, 'ground', [32, 16], '🍌')
         break
       case 'giant':
-        this.sprite('giant', x, FLOOR_Y, 1, 'ground', [126, 84], '👹')
+        this.giantSprite(x)
         break
       case 'start':
-        this.sprite('pigeon', x, FLOOR_Y, 1.35, 'ground', [32, 32], '🐦')
+        this.sprite(this.pigeonKey(), x, FLOOR_Y, 1.35, 'ground', [32, 32], '🐦')
         break
       case 'exit':
         this.sprite('ship', x, FLOOR_Y, 1.15, 'ground', [88, 56], '🚀')
         break
-      case 'checkpoint':
-        this.drawFlag(x, 0, false)
+      case 'checkpoint': {
+        const spot = this.checkpointSpot(point)
+        this.drawFlag(spot.x, 0, false, spot.y == null ? FLOOR_Y : spot.y - 11)
         break
+      }
       case 'fakeflag':
         this.sprite('fake-flag', x, FLOOR_Y - 60, 1, 'center', [40, 48], '🏴')
         break
@@ -949,25 +1053,27 @@ export class Editor {
     else if (type === 'block') box = this.sprite('block', x, 150, 1, 'center', [56, 44], '🧱')
     else if (type === 'fire')
       box = this.sprite('fireball', x, FLOOR_Y - 16, 1, 'center', [32, 32], '🔥')
-    else box = this.sprite('parasite', x, y, 1, 'center', [32, 32], '🦠')
+    else
+      box = this.sprite(this.theme.swarmKey || 'parasite', x, y, 1, 'center', [32, 32], '🦠')
     if (record !== null) this.record('hazard', record, box)
   }
 
-  drawFlag(x, label, record) {
+  // `base` is the y the flagpole stands on: the floor, or the top of a platform.
+  drawFlag(x, label, record, base = FLOOR_Y, kind = 'checkpoint') {
     const ctx = this.ctx
     ctx.fillStyle = '#e6f1e7'
-    ctx.fillRect(x - 2, FLOOR_Y - 76, 4, 76)
+    ctx.fillRect(x - 2, base - 76, 4, 76)
     ctx.fillStyle = hex(this.theme.accent)
-    ctx.fillRect(x + 2, FLOOR_Y - 76, 38, 22)
+    ctx.fillRect(x + 2, base - 76, 38, 22)
     if (label) {
       ctx.fillStyle = '#fff'
       ctx.font = 'bold 12px monospace'
       ctx.textAlign = 'left'
       ctx.textBaseline = 'alphabetic'
-      ctx.fillText(`CP ${label}`, x + 6, FLOOR_Y - 82)
+      ctx.fillText(`CP ${label}`, x + 6, base - 82)
     }
     if (record !== false && record !== null)
-      this.record('checkpoint', record, { l: x - 10, t: FLOOR_Y - 76, r: x + 40, b: FLOOR_Y })
+      this.record(kind, record, { l: x - 10, t: base - 76, r: x + 40, b: base })
   }
 
   label(text, x) {
@@ -998,6 +1104,8 @@ export class Editor {
 
     const left = this.scrollX
     const right = this.scrollX + this.viewW
+    // With levels this big, only draw (and hit-test) what is on screen.
+    const inView = (x, pad = 140) => x > left - pad && x < right + pad
     ctx.fillStyle = hex(theme.sun)
     ctx.globalAlpha = 0.9
     ctx.beginPath()
@@ -1013,6 +1121,12 @@ export class Editor {
       if (level.pits.includes(column)) {
         ctx.fillStyle = '#04070d'
         ctx.fillRect(x, FLOOR_Y, COLUMN, WORLD_HEIGHT - FLOOR_Y)
+        ctx.fillStyle = '#ff3b3b88'
+        ctx.fillRect(x, WORLD_HEIGHT - 16, COLUMN, 16)
+        ctx.fillStyle = '#ffd23f'
+        if (!level.pits.includes(column - 1)) ctx.fillRect(x, FLOOR_Y, 4, WORLD_HEIGHT - FLOOR_Y)
+        if (!level.pits.includes(column + 1))
+          ctx.fillRect(x + COLUMN - 4, FLOOR_Y, 4, WORLD_HEIGHT - FLOOR_Y)
       } else {
         ctx.fillStyle = hex(theme.soil)
         ctx.fillRect(x, FLOOR_Y, COLUMN, WORLD_HEIGHT - FLOOR_Y)
@@ -1032,36 +1146,60 @@ export class Editor {
       if (column < first - 1 || column > last + 1) continue
       this.sprite('bridge', column * COLUMN + COLUMN / 2, FLOOR_Y + 8, 1, 'center', [48, 20], '▬')
     }
-    level.platforms.forEach((platform, index) =>
-      this.drawPlatform(platform.x, platform.y, platform.w, platform.legs, index)
-    )
-    level.hazards.forEach((hazard, index) => this.drawHazard(hazard.type, hazard.x, hazard.y, index))
-    level.enemies.forEach((x, index) =>
-      this.record('ninja', index, this.sprite('ninja', x, FLOOR_Y, 1.6, 'ground', [24, 24], '🥷'))
-    )
-    if (level.giant != null)
-      this.record(
-        'giant',
-        0,
-        this.sprite('giant', level.giant, FLOOR_Y, 1, 'ground', [126, 84], '👹')
-      )
-    if (level.crumb != null)
-      this.record(
-        'crumb',
-        0,
-        this.sprite('crumb', level.crumb, FLOOR_Y - 46, 1, 'center', [18, 18], '🍞')
-      )
-    if (level.fakeFlag != null)
-      this.record(
-        'fakeflag',
-        0,
-        this.sprite('fake-flag', level.fakeFlag, FLOOR_Y - 60, 1, 'center', [40, 48], '🏴')
-      )
-    level.checkpoints.forEach((x, index) => this.drawFlag(x, index + 1, index))
+    level.platforms.forEach((platform, index) => {
+      if (inView(platform.x, platform.w))
+        this.drawPlatform(platform.x, platform.y, platform.w, platform.legs, index)
+    })
+    level.hazards.forEach((hazard, index) => {
+      if (inView(hazard.x)) this.drawHazard(hazard.type, hazard.x, hazard.y, index)
+    })
+    level.enemies.forEach((x, index) => {
+      if (inView(x)) this.record('ninja', index, this.enemySprite(x, index))
+    })
+    level.bananas.forEach((x, index) => {
+      if (inView(x))
+        this.record(
+          'banana',
+          index,
+          this.sprite('banana', x, FLOOR_Y, 1.4, 'ground', [32, 16], '🍌')
+        )
+    })
+    level.giants.forEach((x, index) => {
+      if (inView(x, 260)) this.record('giant', index, this.giantSprite(x))
+    })
+    level.crumbs.forEach((x, index) => {
+      if (inView(x))
+        this.record(
+          'crumb',
+          index,
+          this.sprite('crumb', x, FLOOR_Y - 46, 1, 'center', [18, 18], '🍞')
+        )
+    })
+    level.fakeFlags.forEach((x, index) => {
+      if (inView(x))
+        this.record(
+          'fakeflag',
+          index,
+          this.sprite('fake-flag', x, FLOOR_Y - 60, 1, 'center', [40, 48], '🏴')
+        )
+    })
+    // Flags are numbered in the order the pigeon meets them, as in the game.
+    const flags = [
+      ...level.checkpoints.map((x, index) => ({ x, index, kind: 'checkpoint', base: FLOOR_Y })),
+      ...level.ledgeCheckpoints.map((spot, index) => ({
+        x: spot.x,
+        index,
+        kind: 'ledgecp',
+        base: spot.y - 11,
+      })),
+    ].sort((a, b) => a.x - b.x)
+    flags.forEach((flag, order) => {
+      if (inView(flag.x)) this.drawFlag(flag.x, order + 1, flag.index, flag.base, flag.kind)
+    })
     this.record(
       'start',
       0,
-      this.sprite('pigeon', level.start, FLOOR_Y, 1.35, 'ground', [32, 32], '🐦')
+      this.sprite(this.pigeonKey(), level.start, FLOOR_Y, 1.35, 'ground', [32, 32], '🐦')
     )
     this.label('START', level.start)
     this.record('exit', 0, this.sprite('ship', level.exit, FLOOR_Y, 1.15, 'ground', [88, 56], '🚀'))
