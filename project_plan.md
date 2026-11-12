@@ -170,8 +170,13 @@ Both bonus worlds are open from the start and sit outside the five-world story. 
 - **The explosion spawns two Venera robots.** Two Venera 4 robots appear where the pigeon exploded, hop apart, and then behave like any other Venera (patrol, then chase the pigeon within range, never into a pit). They stay for the rest of that run of the level, so repeated helmet removals leave a crowd.
 - **Not a retry shortcut:** the R key still retries without spawning anything.
 
+### Instant teleport between levels (requirement added 2026-10-29)
+
+Reaching the exit of any level that has a next level (including a world's last level, which leads to the next world) saves progress and immediately teleports the pigeon into that next level: teleport sound, a flash on arrival, and the level starts playing at once. This replaces the old level-complete and world-complete overlays for those cases; the campaign-complete overlay after the 5-4 boss and the results screen for custom levels remain. The same teleport sound plays when the pigeon falls into a pit.
+
 ### Acceptance criteria
 
+- Reaching the exit of 1-1 puts the pigeon straight into 1-2 (playing, at its start checkpoint), and reaching the exit of 1-4 puts it straight into 2-1.
 - On Venus, pressing L kills the pigeon, plays the explosion, respawns it at its checkpoint, and leaves exactly two new Venera 4 robots at the death spot. Pressing L on worlds 1 to 6 does nothing.
 
 - A new save starts at level 1-1 with only that level unlocked.

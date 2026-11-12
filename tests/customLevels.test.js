@@ -251,7 +251,9 @@ test('platform checkpoints share the checkpoint cap and vanish with their platfo
 test('playing a custom level never touches campaign progress', () => {
   const state = new AdventureState()
   const before = JSON.stringify(state.snapshot())
-  state.customLevel = toRuntimeLevel(createBlankLevel())
+  const level = createBlankLevel()
+  level.checkpoints = [800]
+  state.customLevel = toRuntimeLevel(level)
   assert.equal(state.level.custom, true)
   assert.equal(state.checkpoint, 0)
   assert.equal(state.activateCheckpoint(1), true)

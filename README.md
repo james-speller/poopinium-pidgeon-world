@@ -13,6 +13,8 @@ Open the printed URL, normally http://localhost:5173. If dependencies already ex
 
 ## Choose a level
 
+Reach the rocket at the end of a level and the pigeon teleports straight into the next level (or the next world, after a world's last level) with a flash and a teleport sound, no results screen in between and no button to press. Only the end of the story (the 5-4 boss) and levels from the editor stop on a results screen.
+
 The mission panel beside the game shows a world map: five worlds of four level pips each, plus the finale on world 5. Levels unlock in order — finishing one unlocks the next — and every unlocked level stays selectable and replayable.
 
 1. **Outer America:** green space surface, collapsing bridges, a falling-debris cameo, and a gigantic creature on level 4.
@@ -91,6 +93,10 @@ Pits are drawn as a black void with a glowing red floor and yellow-and-black war
 You have ten hearts. Checkpoints refill health. Gigantic creatures and pits cause instant checkpoint retries. Retries are unlimited. The boss has its own health display.
 
 On touch devices (tablets and phones) on-screen buttons appear under the game: left/right arrows, Jump, Fire and Slam. Add `?touch=1` to the address to show them on any device. The in-page feedback box was removed for now.
+
+## Sound effects
+
+Sound effects live in [`audio/sound`](audio/sound). To add one, drop the file there, import it in [`src/game/sounds.js`](src/game/sounds.js) and add it to `SOUNDS`; it is then loaded at start-up and played by key with `this.sound.play('name')`. So far: `bounce1.mp3`, which plays each time the pigeon fires a bouncing kangaroo; `explosion1.mp3`, which plays when the pigeon explodes after taking its helmet off on Venus, and `teleport1.mp3`, which plays when the pigeon falls into a pit (the void) and is sent back to its checkpoint, and also when it reaches the rocket and heads on to the next level or world.
 
 ## Scope
 

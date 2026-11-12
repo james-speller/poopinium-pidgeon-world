@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 
-import { DEFAULT_LEVEL, LEVEL_BY_ID, nextLevelId, veneraEnemies } from '../data/campaign.js'
+import { DEFAULT_LEVEL, nextLevelId, veneraEnemies } from '../data/campaign.js'
 import { AdventureState, readSave, writeSave } from '../state/AdventureState.js'
 
 const FLOOR = 480
@@ -23,6 +23,8 @@ export default class PlayScene extends Phaser.Scene {
   init(data = {}) {
     this.requestedLevel = data.level
     this.restartRequested = data.restart === true
+    // Set when the pigeon teleports in from the previous level: start playing at once.
+    this.arriving = data.arrive === true
     this.customLevel = data.custom || null
   }
 
@@ -51,6 +53,7 @@ export default class PlayScene extends Phaser.Scene {
     this.shotReady = 0
     this.invulnerableUntil = 0
     this.ragdoll = null
+    this.leaving = false
     this.blastReady = 0
     this.slam = false
     this.lastGrounded = false
@@ -102,6 +105,12 @@ export default class PlayScene extends Phaser.Scene {
     this.persist()
     this.physics.pause()
     this.publish()
+    if (this.arriving) {
+      this.handleAction('start')
+      this.cameras.main.flash(350, 200, 235, 255)
+      this.say(`Teleport complete: ${this.level.worldName} ${this.level.number}. ${this.level.message}`)
+      this.publish()
+    }
   }
 
   drawBackground() {
@@ -771,7 +780,7 @@ export default class PlayScene extends Phaser.Scene {
   }
 
   update(_time, delta) {
-    if (!this.player || document.activeElement?.matches('textarea,input')) return
+    if (!this.player || this.leaving || document.activeElement?.matches('textarea,input')) return
     const input = this.readControls()
     this.controller = input.controller
     if (input.pause) {
@@ -861,6 +870,7 @@ export default class PlayScene extends Phaser.Scene {
     if (this.boss) this.updateBoss()
     this.updateProgress(grounded)
     if (this.player.y > 610) {
+      this.playSound('teleport1')
       this.die(
         this.level.trap === 'fire'
           ? 'Confirmed: lava is not soup.'
@@ -1204,6 +1214,7 @@ export default class PlayScene extends Phaser.Scene {
 
   shoot() {
     this.shotReady = this.time.now + 350
+    this.playSound('bounce1', 0.6)
     const shot = this.shots.create(this.player.x + this.facing * 27, this.player.y, 'roo')
     shot
       .setVelocity(this.facing * 420, -140)
@@ -1256,6 +1267,7 @@ export default class PlayScene extends Phaser.Scene {
     this.cameras.main.shake(380, 0.02)
     this.cameras.main.flash(220, 255, 230, 140)
     this.explosionAt(x, y)
+    this.playSound('explosion1', 0.9)
     this.die('The helmet was load-bearing. Two Venera robots are investigating.')
     const spread = [-1, 1].map((direction) => ({
       x: Phaser.Math.Clamp(x + direction * 30, 60, this.width - 60),
@@ -1479,6 +1491,15 @@ export default class PlayScene extends Phaser.Scene {
           ? 'world'
           : 'level'
     this.persist()
+    // Off to the next level or world straight away, with the same teleport as falling into
+    // the void. Only the end of the story and custom levels stop on a results screen.
+    const next = nextLevelId(this.level.id)
+    if (next) {
+      this.leaving = true
+      this.playSound('teleport1')
+      this.scene.restart({ level: next, arrive: true })
+      return
+    }
     this.mode = 'complete'
     this.physics.pause()
     this.publish()
@@ -1486,6 +1507,10 @@ export default class PlayScene extends Phaser.Scene {
   persist() {
     if (this.customLevel) return
     this.saveAvailable = writeSave(this.storage, this.state.snapshot())
+  }
+  // Sound is a bonus: a browser that could not decode or unlock audio just plays silently.
+  playSound(key, volume = 1) {
+    if (this.cache.audio.exists(key)) this.sound.play(key, { volume })
   }
   say(message) {
     this.message = message
